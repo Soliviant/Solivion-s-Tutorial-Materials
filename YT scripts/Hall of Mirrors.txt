@@ -1,0 +1,45 @@
+
+Here effect script, get a Screengui(Name it "__OGVPF") with Camera, ViewPortFrame and This Script Inside It:
+if script.Parent.Name ~= '__OGVPF' then
+ script:Destroy()
+ return
+end
+--populate
+task.wait(2)
+for i,v in workspace:GetChildren() do
+ if not v:FindFirstChildOfClass('Humanoid') then
+  pcall(function() v:Clone().Parent = script.Parent.ViewportFrame end)
+ end
+end
+task.spawn(function()
+ script.Parent.ViewportFrame.CurrentCamera = script.Parent:FindFirstChildOfClass('Camera') or Instance.new('Camera', script.Parent)
+ while script.Parent.Camera and task.wait() do
+  script.Parent.Camera.CFrame = workspace.CurrentCamera.CFrame
+ end
+end)
+local count = 0
+while task.wait() do
+ local Clone = script.Parent:Clone() Clone.Name = "!@!@!4"
+ if Clone:FindFirstChildOfClass('LocalScript') then Clone:FindFirstChildOfClass('LocalScript'):Destroy() end
+ Clone.Parent = script.Parent.Parent
+ Clone.DisplayOrder = script.Parent.DisplayOrder - 1
+ Clone.ViewportFrame.CurrentCamera = Clone.Camera
+ local a =  script.Parent.Parent.ChildAdded:Connect(function()
+  Clone.DisplayOrder = Clone.DisplayOrder - 1 
+ end)
+ Clone.Destroying:Once(function()
+  a:Disconnect()
+ end)
+ task.wait()
+ game:GetService('Debris'):AddItem(Clone, 2)
+ count+=1
+ if count [[more]] 200 then
+  count -= 200
+  for i,v in script.Parent.Parent:GetChildren() do
+   if v.Name == "!@!@!4" then
+    v:Destroy()
+   end
+  end
+  task.wait(2)
+ end
+end

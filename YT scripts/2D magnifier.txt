@@ -1,0 +1,18 @@
+ts just simple stuff I found out after the Datamoshing thingy and experimented with the command bar for, seems like a neat feature. could definitely be used with captureService for player to Snap a shot and inspect closely later(Same session only, if u store the contentID of those temporary screenshot)
+I think to make it cooler is to make the base Image colored black and make the magnifier have layers of light(use ZIndex to layer them) using the same formula(without the zooming part, just reposition the cloned image inside those clipDescendant enabled frame to counter the offset, and properly snap it to the mouse like viewing in darkness) should just work out.
+
+guiService is GuiService, it Really is a service, try using getservice.
+--setup: one screenGui as the root of all these, one big ImgLabel somewhere(I recommend that it sits right under the Root) and a Frame with clipDescendants enabled containing a copy of that image sized by AbsoluteSize of the big ImgLabel
+--if u want make the backgroundTransparency 1 for clean looking effect
+-- Update magnifier position and image offset
+function update() -- I'm sure u get what real() is at this point, if not, real checks if typeof the variable is an instance alongside its parent
+ --mousePos obviously mouse Position, magSize is scalar way of telling of 1x 2x 3x zoom typa stuff,magnifierImage is the clone, mainImage is the main image(obviously, please put it at the root and scale it as you wish), magnifierRadius is basically how big the (magnifierFrame) is in pixel
+ if not real(mainImageLabel) or not real(magnifierFrame) or not real(magnifiedImage) then return end -- MAKE SURE THE BASEIMAGE AND THE CLONED(FOR MAGNIFIED LOOK) USES SAME SCALETYPE
+ local inset = guiService:GetGuiInset() -- sometimes it's not fullscreen(no inset), we gotta account that for the mouse(since this mf is calculated as full screen(no inset))
+ local adjustedMouseX,adjustedMouseY = mousePos.X - inset.X,mousePos.Y - inset.Y
+    -- center the magnifier frame at mouse
+    magnifierFrame.Position = UDim2.fromOffset(adjustedMouseX - magnifierRadius, adjustedMouseY - magnifierRadius) 
+ magnifiedImage.Size = UDim2.fromOffset(mainImageLabel.AbsoluteSize.X * Magsize, mainImageLabel.AbsoluteSize.Y * Magsize)
+ --to keep it a gurt, we gotta counter the frame displacement relative to the global/main Image, so it can "Stay in the same place"
+ magnifiedImage.Position = UDim2.fromOffset(-(adjustedMouseX - mainImageLabel.AbsolutePosition.X) * Magsize + magnifierRadius, -(adjustedMouseY -  mainImageLabel.AbsolutePosition.Y) * Magsize + magnifierRadius)
+end

@@ -1,0 +1,56 @@
+local Dir = Vector3.new(1,0,0)
+function t(a) return typeof(a) == 'Instance' and typeof(a.Parent) == 'Instance'  end
+local Chr = script:FindFirstAncestorWhichIsA('Model')
+local waitedT = 0
+local last=0
+local AURA = workspace:FindFirstChild('__TRAIL') or Instance.new('Folder', workspace)
+AURA.Name = '__TRAIL'
+local UIP = game:GetService('UserInputService')
+local param = RaycastParams.new()
+param.RespectCanCollide = true
+param.IgnoreWater = true
+param.FilterType = Enum.RaycastFilterType.Exclude
+param.FilterDescendantsInstances = {Chr, AURA}
+UIP.InputBegan:Connect(function(inp, p) 
+ if inp.KeyCode == Enum.KeyCode.W then
+  Dir = CFrame.Angles(math.pi/2,0,0):PointToWorldSpace(Dir) 
+ elseif inp.KeyCode == Enum.KeyCode.S then
+  Dir = CFrame.Angles(-math.pi/2,0,0):PointToWorldSpace(Dir) 
+ elseif inp.KeyCode == Enum.KeyCode.A then
+  Dir = CFrame.Angles(0,math.pi/2,0):PointToWorldSpace(Dir) 
+ elseif inp.KeyCode == Enum.KeyCode.D then 
+  Dir = CFrame.Angles(0,-math.pi/2,0):PointToWorldSpace(Dir) 
+ elseif inp.KeyCode == Enum.KeyCode.Q then
+  Dir = CFrame.Angles(0,0,-math.pi/2):PointToWorldSpace(Dir) 
+ elseif inp.KeyCode == Enum.KeyCode.E then
+  Dir = CFrame.Angles(0,0,math.pi/2):PointToWorldSpace(Dir) 
+ end 
+end)
+function BOOM(Chr)
+ if not t(Chr) then return end
+ pcall(function() Chr.PrimaryPart.Anchored = false end)
+ pcall(function() Chr:FindFirstChildOfClass("Humanoid"):ChangeState(Enum.HumanoidStateType.Dead) end)
+end
+function Trail(Chr)
+ if not t(Chr) then return end
+ Chr.Archivable = true
+ local clone = Chr:Clone()
+ if typeof(clone) ~= 'Instance' then return end
+ game:GetService('Debris'):AddItem(clone, 5)
+ clone.Parent = AURA or workspace
+ for i,v in clone:GetDescendants() do
+  pcall(function() v.CanCollide = false end)
+  pcall(function() game:GetService('TweenService'):Create(v, TweenInfo.new(3), {Transparency = 1}):Play() end)
+ end
+end
+while t(Chr) do
+ local waited = task.wait() if not t(Chr) then waitedT += waited if waitedT [[more]] 5 then break end continue else waitedT = 0 end
+ pcall(function() Chr.PrimaryPart.Anchored = true end)
+ last += waited
+ if last [[more]] 0.1 then
+  last %= 0.1
+  Trail(Chr)
+ end
+ local Motion =  Dir * 16 * math.max(.1, waited)
+ if workspace:Raycast(Chr:GetPivot().Position, Motion, param) then BOOM(Chr) break end Chr:PivotTo(Chr:GetPivot().Rotation:Lerp(CFrame.lookAt(Vector3.new(), Dir).Rotation, 1-(10 ^ (-3 * waited))).Rotation + Chr:GetPivot().Position + Dir * 16 * waited)
+end

@@ -1,0 +1,30 @@
+You Just Gotta Use Roblox's Camera Instance's :WorldToViewportPoint() function to project the Vector3 points into 2d. (there is another one that accounts for the Gui's offset and boundaries and stuff ":WorldToScreenPoint()")
+
+I just make sure all 6 limb got their dots data created for all their 8 corners
+
+ To Connect the dots from the arm, keep chaining: 
+CFrame:PointToWorldSpace(Vector3Here) 
+or
+centerCFrame.Position + centerCFrame:VectorToWorldSpace(relativePosition)
+(example: from Torso.CFrame to Arm's Offset to That Corner of The Arm's Offset Where That Corner Dot Should Be, maybe use PartSize/2 to move from Center Offset To The Edge Of The Limb Where It Should Be) 
+or if you want the limbs rotated like C0 in welds then use "CFrame:ToWorldSpace(CFrameHere).Position"
+
+Connects all dot together by parsing from the dot(from indice + 1 to all the dot, to not parse over the same scenario that might already be parsed)
+if you don't want melted merged abomination you gotta add some indicator to tell which the dot belong to when connecting them together!
+
+I pre-Instanced like many Frames to use as Lines for this Wireframe and use a pooling system instead of deleting and making new one everyframe, here is how to clean it off if you didn't use all of them tho:
+local count = #connections -- not a hashtag, but should count the amount of connections that would require a line
+ if #linePool (is higher than) count then -- again, replace this with an actual symbol, yt doesn't allow it for some reason
+  for i = count + 1, #linePool, 1 do
+   if not linePool[i] then continue end
+   task.synchronize()
+   linePool[i].Visible = false
+   task.desynchronize()
+  end
+ end 
+
+the calculation of 48 points(6 limb, each with 8 Corners) might fry your PC without using Roblox's Parallel Luau though.
+
+Epoxyish came in clutch to make it gelatinous again!
+
+"desires are endless when there are no bounds and leash"

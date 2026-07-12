@@ -1,0 +1,22 @@
+this one is made a bit after that thing I once showcased on my channel (Serversided Character Physics).
+
+I removed the Gyro(Gameplay Gimmick that is unrealistic due to how it's simply reusing the lift force) because it will make the controlling the character pretty hard, it'll be fighting with something trying to rotate you in real-time, and it'd mostly results in the character spinning around.
+
+I kinda looked up how aerodynamic works, and try trial and error my way out the vector hell, I kinda messed up dot product and vectors a bit before getting this right. It's not the most optimized equation, but this will do (I know removing the negative sign off of the forwardVector and rightVector doesn't change anything in the output, I'm just putting it there to bloat the snippet)
+
+The forces applied are only based off of plain standard-sized R6 surface area, those were precalculated for the sake of my sanity.
+
+Here's like a snippet of the code if you wanna know the calculation and stuff, using Vector3.yAxis is kind of my way of assuming the wind will impact from below.
+
+--assuming root is HumanoidRootPart
+local forwardVector = -root.CFrame.LookVector
+local rightVector =  -root.CFrame.RightVector
+local lift = ((Vector3.yAxis:Dot(rightVector) * rightVector * 5/14) + (Vector3.yAxis:Dot(forwardVector) * forwardVector) + (Vector3.yAxis:Dot(root.CFrame.UpVector) * root.CFrame.UpVector * 4/14)) * LIFT_FACTOR * math.abs(data.velocity.Y)
+local drag = -data.velocity * DRAG_COEFFICIENT
+local windInfluence = lift * 0.05 * dt
+-- It is left without this part: data.rotationgyro += windInfluence
+-- Update velocity
+data.velocity += (GRAVITY + lift + drag) * dt
+
+if I uncommented the RotationGyro line: 
+https: //   • with the Rotation gimmick  

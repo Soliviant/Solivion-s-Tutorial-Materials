@@ -1,0 +1,50 @@
+I ain't that good at it but I was able to make the thing works on both R6 and R15, with unique handling ofc
+
+For compatibility:
+
+ R15's Y axis (left and right) Rotation sometime should be Translated To R6's Z axis rotation and vice versa
+
+For some reason, The X axis rotation of the head and the torso is inverted between r6 and r15
+
+If the head exceeds 90 in Left/Right(Y in R15, Z in R6) axis, the torso will help the rest, I do this by calculating the rotation for the head first, then check and split the rest off to the torso.
+
+I merge the movement direction tilt into the Torso before clamping the whole thing under 90 degree.
+
+R6's counter Hip Rotation Swap from Y,Z from the Torso part's and ofcourse inverts the  rotation. (R15 just... :Inverse() the rotation used by the torso)
+
+R15 also uses Whole Torso Rotation (Directly Mess With Root Instead Of Waist Because I can just make the R6 one compatible with that, I'm lazy)
+
+ORDER OF OPERATION MATTERS A LOT,  FIGURING OUT HOW TO MAKE THE LEG GO BACK INTO ITS PLACE WAS THE HARDEST PART.
+
+--it kinda goes like
+-- Calculate left/right(y axis) different
+ local CamYAng = math.atan2(camera.CFrame.LookVector.X, camera.CFrame.LookVector.Z)
+ local RootYAng = math.atan2(root.CFrame.LookVector.X, root.CFrame.LookVector.Z)
+ local yawDiff = CamYAng - RootYAng
+ -- Normalize yawdiff to [-pi, pi] range, they say I should do it to handle wrap
+ yawDiff = (yawDiff + math.pi) % (2 * math.pi) - math.pi
+if math.abs(yawDiff) [[more than]] math.pi/2 then -- 90 degree
+  TorsoY = yawDiff - (math.sign(yawDiff) * (math.pi/2))
+ else TorsoY = 0 end
+local CamX = math.asin(math.clamp(camLook.Y, -1, 1))
+ local HeadX = math.clamp(CamX , -math.rad(60), math.rad(60))
+ local TorsoX = math.clamp( CamX - HeadX, - math.rad(30),  math.rad(30))
+if isr15 then
+  TorsoRot = CFrame.Angles(TorsoX, TorsoY, 0)
+ else
+  TorsoRot = CFrame.Angles(-TorsoX, 0, TorsoY)
+ end
+local headYRel = math.clamp(yawDiff, -(math.pi/2), (math.pi/2))
+ local headXRel = HeadX - TorsoX
+if isr15 then
+  HeadRot = CFrame.Angles(headXRel, headYRel, 0)
+ else
+  HeadRot = CFrame.Angles(-headXRel, 0, headYRel)
+ end
+if isr15 then
+  HipCounterTransform = TorsoRot:Inverse()
+ else
+  HipCounterTransform = CFrame.Angles(-TorsoX, -TorsoY, 0)
+ end
+ 
+--APPLIES TO C0 or ATTACHMENT0.CFRAME

@@ -1,0 +1,102 @@
+The input support would be too long for 5000 characters, I asked assistant to do the touch screen controls, other than that, it's mine.
+
+(here are my recommendation into making them however, I do ask the assistant to correct many mistakes, 
+if they want to do a touchID table system, go ahead, but make sure to log all touchID and make sure if a threshold amount was exceeded, the oldest touch is wiped(sometime Roblox did not detect the touchHold stopping),
+
+DO NOT USE TICK() FOR TIMER, THE LOOP HAS DT AND RUNS EVERY FRAME, INCREMENT INSTEAD TO NOT CHECK BY SUBTRACTING LARGE NUMBERS (IF YOU NEED SOMETHING LIKE IT USE os.clock!),
+
+For the Touching, Make sure they check inputStart and log the Touch's InputObject if it was Actually in the area(X between AbsolutePosition.X up to AbsoluteSize.X and Y between AbsolutePosition Y upto AbsoluteSize.Y; Remember, the position is the corner the 2D Size expands from, NOT THE MIDDLE) .DO NOT ONLY CHECK THROUGH InputChanged since it MIGHT hook to a random swipe coming from outside the area,
+
+make sure It DELETES the old GUI, sometimes resetting MIGHT NOT CLEAN IT UP if it got a specific set up (mark with attribute, parse destroy before creating a new GUI),
+
+If u want frame as indicator then use it BUT .Active = false so it does not sink the input and DO NOT USE Frame's InputBegin or Events if you already use InputChanged "InputType == MouseMovement" type check. It already does the Job,
+
+For Pinch detection, detect delta changes between TWO LASTEST TOUCH, DO NOT REMOVE THEM FROM THE LOG. INSTEAD MAKR THEM ENDED IF THEY ENDED SO IT DOESNT TAKE THE OLDER TOUCH INTO THE MIX
+) 
+
+Here are some important loops.
+--X,Y is a number(meant to represent Degree)
+--Interpolation is possible, Roblox convert those math.rad Euler angles into incomprehensible value that is called Quaternion, It ain't gimbal locking.
+--userSens is for Gamepad to adjust the Sensitivity on the fly.
+--math.sign(90-math.abs(Y)) to make the Horizontal rotation seem normal in upside down angles
+
+local X,Y = 0,0
+local Ang = CFrame.new()
+local Dist = 5
+local LDist = 0.5
+local Centre = Vector3.new()
+local UIP = game:GetService('UserInputService')
+local LastThumbStickPos = Vector3.new()
+local Sensitivity = 1.0 -- Gamepad sensitivity multiplier
+local Param = RaycastParams.new()
+Param.FilterType = Enum.RaycastFilterType.Exclude
+Param.IgnoreWater = true
+local LastMax = 25
+
+function getUserSensitivity()
+ local success, value = pcall(function()
+  return UserSettings().GameSettings:GetCameraSensitivity()
+ end)
+ if success and typeof(value) == 'number' then
+  return value
+ end
+ return 1.0 -- Default
+end
+
+function getSubjectFilter(Cam)
+ local subject = typeof(Cam) == 'Instance' and Cam.ClassName == 'Camera' and Cam.CameraSubject
+ if typeof(subject) ~= 'Instance' then return nil end
+
+ if subject:IsA('Humanoid') then
+  return subject:FindFirstAncestorWhichIsA('Model') or subject.Parent
+ elseif subject:IsA('BasePart') then
+  return subject:FindFirstAncestorWhichIsA('Model') or subject.Parent
+ elseif subject:IsA('Model') then
+  return subject
+ else return subject.Parent or subject end
+end
+
+while script and script.Parent do
+ local dt = task.wait()
+ local userSens = getUserSensitivity()
+ local sens = Sensitivity * userSens
+ X %= 360
+ Y = (Y + 180) % 360 - 180 -- limitless Vertical spin
+ if U then
+  Y += dt * 32 * sens
+ end
+ if D then
+  Y -= dt * 32 * sens
+ end
+ if L then
+  X += math.sign(90-math.abs(Y)) * dt * 32 * sens
+ end
+ if R then
+  X-= math.sign(90-math.abs(Y)) * dt * 32 * sens
+ end
+ if typeof(LastThumbStickPos) == 'Vector3' then
+  X -= LastThumbStickPos.X * math.sign(90-math.abs(Y)) * dt * 32 * sens
+  Y += LastThumbStickPos.Y * dt * 32 * sens
+ end
+ Dist = math.clamp(Dist + (TriggerR2 - TriggerL2) * 10 * dt, 0.5, 25)
+ local Cam = workspace.CurrentCamera
+ if typeof(Cam) == 'Instance' and Cam:IsA('Camera') then
+  local Speed = 1 - (10^-3) ^ dt
+  Cam.CameraType = Enum.CameraType.Scriptable
+  local Inverted = UserSettings().GameSettings:GetCameraYInvertValue() or 0
+  if typeof(Inverted) ~= 'number' then Inverted = 0 end
+  Ang = Ang:Lerp(CFrame.Angles(0, math.rad(X), 0) * CFrame.Angles(math.rad(Y * Inverted), 0, 0), Speed)
+  Centre = typeof(Cam.CameraSubject) == 'Instance' and (Cam.CameraSubject:IsA('BasePart') and Cam.CameraSubject.Position or Cam.CameraSubject:IsA('Humanoid') and Cam.CameraSubject.RootPart and Cam.CameraSubject.RootPart.Position or Cam.CameraSubject:IsA('Model') and Cam.CameraSubject:GetPivot().Position) or Centre -- same as the last "Target"
+  local BackwardVec = -Ang.LookVector * LDist
+  LDist = math.min(LDist + (Dist - LDist) * Speed, LastMax)
+  Param.FilterDescendantsInstances = {getSubjectFilter(Cam)}
+  local TotalDist = workspace:Blockcast(CFrame.new(Centre), Vector3.new(.1,.1,.1), -Ang.LookVector * Dist, Param)
+  if TotalDist then
+   LDist = math.min(LDist, TotalDist.Distance)
+   LastMax = math.min(LastMax, TotalDist.Distance)
+  else
+   LastMax = 25
+  end
+  Cam.CFrame = Ang + (Centre + BackwardVec)
+ end
+end

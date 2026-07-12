@@ -1,0 +1,37 @@
+function split(part, hitPosition, cameraCF) -- hit pos is like start point(center)
+ if typeof(part) ~= 'Instance' or typeof(part.Parent) ~= 'Instance' or typeof(hitPosition) ~= 'Vector3' or typeof(cameraCF) ~= 'CFrame' then return end
+ if not part:IsA("BasePart") or part:IsA("Terrain") or part:IsA("MeshPart") then return end
+ local originalParent = part.Parent
+ local viewDir = (hitPosition - cameraCF.Position).Unit -- for perspective cut
+ local cutterRotation = CFrame.lookAt(Vector3.zero, viewDir, cameraCF.UpVector) -- use whatever u want, it will slice things into four using the direction
+ -- Make It Relative, think of it like moving the square completrly out the center, but this time move both axis at a time in a way that create four sub-square from one large square
+ --2048 kinda large for part, I think that's enough, 1024 is just half-size yk.
+ for i, cf in {cutterRotation + (hitPosition + cutterRotation:VectorToWorldSpace(Vector3.new(-1024, 0, 1024))),cutterRotation + (hitPosition + cutterRotation:VectorToWorldSpace(Vector3.new(1024, 0, 1024))),cutterRotation + (hitPosition + cutterRotation:VectorToWorldSpace(Vector3.new(-1024, 0, -1024))),cutterRotation + (hitPosition + cutterRotation:VectorToWorldSpace(Vector3.new(1024, 0, -1024)))} do
+  local clone = part:Clone() -- clone or else u literally just removing it cuz none of the square should intersect, and the size filter wwill remove it
+  clone.Name = part.Name.."_Q"..tostring(i)
+  clone.Anchored = true
+  clone.Parent = workspace
+  local cutter = Instance.new("Part")
+  cutter.Name = part.Name.."_Q"..tostring(i)..'_C'
+  cutter.Size = Vector3.new(2048, 2048, 2048)
+  cutter.CFrame = cf
+  cutter.Anchored = true
+  cutter.CanCollide = false
+  cutter.CanQuery = false
+  cutter.Transparency = 1
+  local a, b = pcall(function()  return clone:IntersectAsync({cutter}) end)
+  if a and b then
+   if b:IsA("BasePart") and b.Size.Magnitude [[more]] 0.01 then
+    b.Name = part.Name.."_Q"..tostring(i)
+    b.Anchored = false -- break, or save original state in variable and set it here
+    b.Color = part.Color
+    b.Parent = originalParent
+   elseif b then
+    b.Parent = nil
+   end
+  end
+  clone.Parent = nil
+  cutter.Parent = nil
+ end
+ part.Parent = nil
+end

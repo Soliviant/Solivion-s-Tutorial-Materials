@@ -1,0 +1,108 @@
+-- Virtual limbs help solve IK cuz R6 is omitting upper/lower legs, feet stay planted until step needed
+-- Sine wave lifts foot during step, raycast finds grouund
+
+--here, u can play with it
+--FOR VIRTUAL LIMBS, HOW HIGH ARE THESE, I separate R6's leg into 1:1 cuz I won't split for Foot.
+local THIGH = 1
+local SHIN = 1
+--HOW HI U DO THE STEPPING MOTION, IF TOO HIGH YOU WILL LOOK RIDICULOUS
+local STEP_HEIGHT = .5
+--HOW FAR THE STRIDE
+local STEP_DIST = 1
+local STEP_TIME = .2 -- Time beteen each stride
+local HIP_W = 1 --wide
+local HIP_D = 1 --depth
+local PLANTED, STEPPING = 0, 1 -- this doesn't do much at all, just the int that is used to represent a state.
+
+local RunService = game:GetService("RunService")
+local character = script.Parent
+local humanoid = character:WaitForChild("Humanoid")
+local rootPart = character:WaitForChild("HumanoidRootPart")
+local torso = character:WaitForChild("Torso")
+local leftHipMotor = torso:WaitForChild("Left Hip")
+local rightHipMotor = torso:WaitForChild("Right Hip")
+
+-- Kill default animation, die you Transform user.
+local anim = character:FindFirstChild("Animate") -- nah fuck off.
+if anim then anim.Disabled = true end
+local an = humanoid:FindFirstChildOfClass("Animator")
+if an then
+	for _, t in an:GetPlayingAnimationTracks() do t:Stop() end
+	an.AnimationPlayed:Connect(function(t) task.defer(function() t:Stop() end) end)
+end
+
+function makeFoot(side) --[[just incase u wanna make sum spider rig]] return {side = side, state = PLANTED, plant = Vector3.zero, stepFrom = Vector3.zero, stepTo = Vector3.zero, timer = 0} end
+local lFoot = makeFoot(-1)
+local rFoot = makeFoot(1)
+-- Virtual limbs (internal only, no workspace parts)
+local vLH, vLK, vLF = Vector3.zero, Vector3.zero, Vector3.zero
+local vRH, vRK, vRF = Vector3.zero, Vector3.zero, Vector3.zero
+local rp = RaycastParams.new() rp.FilterType = Enum.RaycastFilterType.Exclude
+-- it's just scanning for ground down dw.
+function groundY(pos) rp.FilterDescendantsInstances = {character} local h = workspace:Raycast(pos + Vector3.new(0,5,0), Vector3.new(0,-12,0), rp) return h and h.Position.Y or pos.Y - 3 end
+function ik(hip, foot, uL, lL, bend)
+	local d = math.clamp((foot-hip).Magnitude, math.abs(uL-lL)+0.01, uL+lL-0.01)
+	local c = math.clamp((uL^2+d^2-lL^2)/(2*uL*d), -1, 1)
+	local dir = (foot-hip).Unit
+	local ax = dir:Cross(bend) if ax.Magnitude < 0.001 then ax = Vector3.new(1,0,0) end
+	return hip + CFrame.fromAxisAngle(ax.Unit, math.acos(c)):VectorToWorldSpace(dir) * uL
+end
+function hipPos(cf, side) return cf * Vector3.new(side*HIP_W/2, -HIP_D, 0) end
+function ease(t) return t*t*(3-2*t) end
+function updateFoot(f, dt, cf, otherStepping)
+	if f.state == PLANTED then
+		local hp = hipPos(cf, f.side)
+		local dx, dz = hp.X - f.plant.X, hp.Z - f.plant.Z
+		if math.sqrt(dx*dx+dz*dz) > STEP_DIST and not otherStepping then -- see if distance too far, and if the other leg isn't stepping so it ain't floating
+			f.state = STEPPING f.stepFrom = f.plant f.timer -= STEP_TIME
+			local hp2 = hipPos(cf, f.side)
+			-- Predict where the hip will be when foot lands, step target goes there
+			local v = rootPart.AssemblyLinearVelocity
+			local fv = Vector3.new(v.X, 0, v.Z)
+			local predict = fv * STEP_TIME * 1.8
+			local targetXZ = hp2 + predict
+			f.stepTo = Vector3.new(targetXZ.X, groundY(targetXZ), targetXZ.Z)
+		end
+		return f.plant
+	else
+		f.timer += dt
+		local t = math.clamp(f.timer / STEP_TIME, 0, 1)
+		local pos = f.stepFrom:Lerp(f.stepTo, ease(t))
+		pos = Vector3.new(pos.X, pos.Y + math.sin(t*math.pi)*STEP_HEIGHT, pos.Z) -- sin just to keep it lift, else it lowky slides
+		if t >= 1 then f.state = PLANTED f.plant = f.stepTo end
+		return pos
+	end
+end
+function applyShin(motor, knee, footPos, rightSign, cf)
+	local up = (knee - footPos).Unit
+	local right = up:Cross(cf.LookVector)
+	if right.Magnitude < 0.01 then right = up:Cross(Vector3.new(1,0,0)) end
+	right = right.Unit * rightSign
+	local desired = CFrame.fromMatrix(knee, right, up)
+	motor.C0 = torso.CFrame:Inverse() * desired * motor.C1
+end
+
+--init
+local lh = hipPos(rootPart.CFrame,-1) local rh = hipPos(rootPart.CFrame,1)
+lFoot.plant = Vector3.new(lh.X, groundY(lh), lh.Z)
+rFoot.plant = Vector3.new(rh.X, groundY(rh), rh.Z)
+
+function update(dt)
+	local cf = rootPart.CFrame
+	local lhp = hipPos(cf, -1)
+	local rhp = hipPos(cf, 1)
+	local lPos = updateFoot(lFoot, dt, cf, rFoot.state == STEPPING)
+	local rPos = updateFoot(rFoot, dt, cf, lFoot.state == STEPPING)
+	local bend = cf.LookVector
+	local lK = ik(lhp, lPos, THIGH, SHIN, bend)
+	local rK = ik(rhp, rPos, THIGH, SHIN, bend)
+	-- Virtual limbs (internal)
+	vLH, vLK, vLF = lhp, lK, lPos
+	vRH, vRK, vRF = rhp, rK, rPos
+	applyShin(leftHipMotor, lK, lPos, 1, cf)
+	applyShin(rightHipMotor, rK, rPos, -1, cf)
+end
+
+--bind cuz I realized the while loop had to wait until the last thing finished and task.wait() is inaccurate and would cost me to have to resort to "os.clock() - last" and I won't do that. 
+RunService:BindToRenderStep("ProceduralIK", Enum.RenderPriority.Character.Value + 1, update)
+character.AncestryChanged:Connect(function() if not character.Parent then RunService:UnbindFromRenderStep("ProceduralIK") end end)

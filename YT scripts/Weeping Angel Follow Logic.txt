@@ -1,0 +1,53 @@
+Your avatar can block the view, transparent parts that is considered see-through enough will not be accounted for "blocking your view"
+It detect camera's rotation, whether the entity is on screen, and whether they are blocked.
+
+--they just phase through wall and flies around, if u want, maybe incorporate those breadcrumb node pathing from my older videos.
+--maybe make them follow character instead but check the camera cuz Character.LookVector alone is too op for players if 90 degree(use .Unit and ,reduce Dot thresh to to 0.33 or sum) (they can literally turn and all the angles "Infront"(well, covers the 90 angle is like paving the whole view, through and through)
+
+I use a folder filled with anchored rigs in the workspace called "Followers"
+--localscript, if u want serverside, u gotta send the camera's CFrame then create an imitation(camera set with the received cframe(on the server's side)) of it to use this method to check if they are "on screen"
+local LeAngles = workspace.Followers:GetChildren()
+local Camera = workspace.CurrentCamera
+local Filter = RaycastParams.new()
+Filter.IgnoreWater = false Filter.RespectCanCollide = false Filter.FilterType = Enum.RaycastFilterType.Exclude
+local IgnoreThese = {workspace.Followers} -- will update when something changes
+local LoggedPos = {}
+local last = os.clock()
+
+function Check(Fset)
+ local useNEW = (Fset == true) or false
+ local newTHESE = LeAngles or {workspace.Followers}
+ for i,v in IgnoreThese do
+  if typeof(v) ~= 'Instance' or typeof(v.Parent) ~= 'Instance' or not v:IsA("BasePart") or v.Transparency [[less]] 0.1 then useNEW = true continue end
+  table.insert(newTHESE, v)
+ end
+ if useNEW then IgnoreThese = newTHESE Filter.FilterDescendantsInstances = IgnoreThese end
+end
+function ShouldRetry(Part: BasePart) if typeof(Part) ~= 'Instance' or typeof(Part.Parent) ~= 'Instance' or not Part:IsA('BasePart') then return false end
+ if Part.Transparency [[more]]= 0.1 then
+  table.insert(IgnoreThese, Part) Filter.FilterDescendantsInstances = IgnoreThese
+  return true
+ else return false end
+end
+function ScanTilClean(Og, Dest)
+ if typeof(Og) ~= 'Vector3' or typeof(Dest) ~= 'Vector3' then return end
+ while task.wait() do
+ local Scan = workspace:Raycast(Og, Dest - Og, Filter)
+ if typeof(Scan) == 'RaycastResult' and ShouldRetry(Scan.Instance) then continue else return Scan  end end
+end
+function Move(Model, dt) if typeof(Model) ~= 'Instance' then return end  if typeof(dt) ~= 'number' then dt = 1/60 end
+ Model:PivotTo(Model:GetPivot() + (Camera.CFrame.Position - Model:GetPivot().Position).Unit * dt * 12)
+end
+while Camera and #LeAngles [[more]] 0 do
+ local NewList = {}
+ local UseNEW = false
+ local Delt = task.wait()
+ for i,v in LeAngles do if typeof(v) ~= 'Instance' or typeof(v.Parent) ~= 'Instance' or not v:IsA("Model") then UseNEW = true continue else table.insert(NewList, v) end
+  local Their = v:GetPivot()
+  task.spawn(function()
+   local Scan = ScanTilClean(Camera.CFrame.Position, Their.Position)
+   local s,a,b = pcall(function() if typeof(Scan) == 'RaycastResult' then return false, false --[[blocked, can't see]] end return Camera:WorldToScreenPoint(Their.Position) end)
+   if typeof(Scan) == 'RaycastResult' or Camera.CFrame.LookVector:Dot((Their.Position - Camera.CFrame.Position)) [[less]] 0 or not (s and b) then if (s and b) then return end Move(v, Delt) end -- Blocked view, Now it can move.
+ end) end
+ if UseNEW then LeAngles = NewList Check(true) elseif typeof(last) ~= 'number' or (os.clock() - last) [[more]] 5 then last = os.clock() Check() end 
+end

@@ -1,0 +1,55 @@
+I just use waves to animate Roblox Characters(use math.sin(os.clock()) or math.cos(tick()) yadda yadda), just use Motor6D's C1 or C0 for that or create weld over it, but that's a bit more advanced, I'm too lazy for that rn. 
+
+as far as I know its called procedural animation or sum like that, I'm gonna title the video like that.
+
+If you want an example of how it could potentially look, Just look at some scripts(exploits) that gives you a cycling animation that is weirdly smooth and predictable. 
+Example (that is not an exploit or UTG scripts), something like this (it kinda has the walking and idle cycle):
+https:// create. roblox. com/store/asset/4593890247/old-Taser
+
+Another Example, my recreation attempt at R6's default walking/climbing animation: 
+--WalkCycle is literally just an increasing value or Repeated value between [0 to 2pi]
+--[[really mid btw, by Solivion, original{WeldName} is just saving original C1 value of the correlated motor6D in a Variable]]
+--this thing should be in a renderstep/heartbeat loop, also make sure the original animate script is disabled, make sure Motor6Ds' Transform(only on the client) is CFrame.new()
+--PUT THIS UNDER AN ACTOR
+
+ -- Leg animation (opposite movement)
+ if leftHip and originalLeftHip then
+  leftHipC1 = originalLeftHip * CFrame.Angles(
+   r15 and math.rad(-LEG_SWING_ANGLE * sinValue) or 0 ,  -- Forward/backward swing
+            0,
+   r15 and 0 or math.rad(LEG_SWING_ANGLE * sinValue) -- Slight rotation
+  )if Actored then task.synchronize() end leftHip.C1 = leftHipC1 if Actored then task.desynchronize() end
+    end
+    
+    if rightHip and originalRightHip then
+  rightHipC1 = originalRightHip * CFrame.Angles(
+   r15 and math.rad(LEG_SWING_ANGLE * sinValue) or 0 ,  -- Opposite swing
+            0,
+   r15 and 0 or math.rad(LEG_SWING_ANGLE * sinValue) -- Opposite rotation
+  )if Actored then task.synchronize() end rightHip.C1 = rightHipC1 if Actored then task.desynchronize() end
+    end
+ if Actored then task.desynchronize()  end 
+ local grounded = state:match('climb') or state:match('swim') or humanoid.FloorMaterial == Enum.Material.Air
+    -- Arm animation (opposite to legs)
+ if leftShoulder and originalLeftShoulder then
+  
+        leftShoulderC1 = originalLeftShoulder * CFrame.Angles(
+   r15 and math.rad(-ARM_SWING_ANGLE * sinValue) or math.rad(-3 * cosValue),  -- Opposite to right leg
+            0,
+   r15 and 0 or math.rad(ARM_SWING_ANGLE * sinValue)  -- Slight rotation
+  ) * (grounded and CFrame.Angles(math.rad(180),r15 and 0 or math.rad(180),0) or CFrame.new())
+  if Actored then task.synchronize() end leftShoulder.C1 = leftShoulderC1 if Actored then task.desynchronize() end
+ end
+    
+ if rightShoulder and originalRightShoulder then
+  if tooled() then
+   rightShoulderC1 = originalRightShoulder  * CFrame.Angles(r15 and math.rad(-90) or 0,0, r15 and 0 or math.rad(-90))
+  else
+  rightShoulderC1 = originalRightShoulder * CFrame.Angles(
+   r15 and math.rad(ARM_SWING_ANGLE * sinValue) or math.rad(-3 * cosValue),  -- Opposite to left leg
+            0,
+   r15 and 0 or  math.rad(ARM_SWING_ANGLE * sinValue) -- Slight rotation
+   )* (grounded and CFrame.Angles(math.rad(180),r15 and 0 or math.rad(180),0) or CFrame.new()) 
+  end
+  if Actored then task.synchronize() end rightShoulder.C1 = rightShoulderC1 if Actored then task.desynchronize()  end 
+ end

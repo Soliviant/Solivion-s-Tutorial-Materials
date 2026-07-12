@@ -1,0 +1,83 @@
+this "3D rendering system" in Roblox uses EgoMoose's peak triangle drawing method!!!!!
+https://github.com/EgoMoose/Articles/...
+(the texture wasn't loading so I looked through marketplace for "Right Triangle" and "Half-Square", found one and another one flipped upside down so I made that one rotate 180 degree to get to how it lookss in the doc)
+
+it just connect 4 points for a surface, repeat it for six surface to get six squares (This is seperated as a system, since dot grouping for each limb uses specific indices for each Corner position) and make those squares into triangle during the rendering of the process, group them in three in a way (1,3,4) (1,2,3) when 2 and 4 is the opposite corner of the surface.
+
+The transparency here is more about how large the 2d triangle size is comparing to the Viewport Size, scales exponentially when after 25% or more, this one is calculated at the rendering stages.
+
+Anyways I still don't know how to make a good culling system more than check if the points are offscreen or all three points are blocked by Raycast to the camera, but I'll try to check all three against the ones with higher ZIndex and instead might have rendering orders from front too back to get the front sies(higher ZIndex) and see if the back needed to be rendered more.
+
+ZIndex are calculated per traingle's "Vector3" distance to camera and negated to make the further distance the more behind the others just like the wireframe.
+
+This thing is based off the wireframe project, PROUDEST SERIES OF MY OWN SO FAR, so I'm aggressively watermarking all around the footage.
+
+I do want to make it like... replace the Roblox character though, but I'm too lazy to make the thing more animation compatible, rendering it was already tough job, anyways the disappearing triangle seems to be from ZIndex calculation issue... I decided to switch to ZIndexing from the whole Surface's Position instead, but it looks better when it glitches out I guess, kinda forms more unified rectangular surface.
+
+"try !2D"
+Again, Epoxyish was used to make ts look deformed and bouncy.
+https://devforum.roblox.com/t/epoxyis...
+
+--the bouncy
+for i = 1, #animatedPositions do
+  local relativePos = animatedPositions[i]
+  -- Use VectorToWorldSpace to transform the point position
+  local worldOffset = centerCFrame:VectorToWorldSpace(relativePos)
+  local ae = centerCFrame.Position + worldOffset
+  if not epoxies[i] then
+   epoxies[i] = epox.Spring({Target = epox.Value(ae), Position = Vector3.new(), Speed = 3 + math.random() , Dampening = 3 + math.random()})
+  else
+   epoxies[i].Target = epox.Value(ae)
+  end
+  points[i] = epoxies[i].Position
+ end
+
+--projection
+function project(camera:Camera, character)
+ task.desynchronize()
+ for i = 1, #points do
+  local screenPos, onScreen = camera:WorldToViewportPoint(points[i])
+  screenPositions[i] = Vector2.new(screenPos.X, screenPos.Y)
+  depths[i] = (points[i] - camera.CFrame.Position).Magnitude
+  pointOnScreen[i] = onScreen
+ end
+ table.clear(trianglesToRender)
+ for partIndex = 1, #R6_PARTS do
+  local baseIndex = (partIndex - 1) * 8 -- 8 corners per part
+  local partColor = R6_PARTS[partIndex].Color
+  local skipFaces = SKIP_FACES[partIndex] or {}
+  
+  for faceIndex, face in ipairs(FACES) do
+   if not skipFaces[faceIndex] then -- normally I skip the faces of the arm and torso, But I removed it, it's a table btw.
+    local c1, c2, c3, c4 = face.corners[1], face.corners[2], face.corners[3], face.corners[4]
+    local idx1, idx2, idx3, idx4 = baseIndex + c1, baseIndex + c2, baseIndex + c3, baseIndex + c4
+    local p1,p2,p3,p4 = points[idx1], points[idx2], points[idx3], points[idx4]
+    if p1 and p2 and p3 and p4 then
+     -- false lighting
+     local worldNormal = centerCFrame:VectorToWorldSpace(face.normal)
+     local cameraDir = camera.CFrame.LookVector
+     local dotProduct = worldNormal:Dot(cameraDir)
+     
+     -- Triangle 1: c1, c2, c3
+     if not shouldCull(idx1, idx2, idx3, camera, character) then
+      local tri1Center = (p1 + p2 + p3) / 3
+      local tri1Depth = (tri1Center - camera.CFrame.Position).Magnitude
+      
+      table.insert(trianglesToRender, {screenPoints = {screenPositions[idx1], screenPositions[idx2], screenPositions[idx3]},depth = tri1Depth,color = partColor,normalDot = math.abs(dotProduct)})
+     end
+     
+     -- Triangle 2: c1, c3, c4
+     if not shouldCull(idx1, idx3, idx4, camera, character) then
+      local tri2Center = (p1 + p3 + p4) / 3
+      local tri2Depth = (tri2Center - camera.CFrame.Position).Magnitude
+      table.insert(trianglesToRender, {screenPoints = {screenPositions[idx1], screenPositions[idx3], screenPositions[idx4]},depth = tri2Depth,color = partColor,normalDot = math.abs(dotProduct)})
+     end
+    end
+   end
+  end
+ end
+ 
+ -- painter's algorithm thing
+ table.sort(trianglesToRender, function(a, b) return a.depth [[more than]] b.depth end)
+ task.synchronize()
+end

@@ -1,0 +1,97 @@
+inspired by "Angler" from that 2 balls fighting in box typa content, but I'm not sure which channel it was from cuz I was scrolling shorts and forgot everything right after.
+
+interesting part: 3:48 and onward.
+homing swing physics I'd call it.
+
+(ps. wrapped my stuff in task.spawn() cuz the instancing is expensive)
+Imagine a bouncy ball physics, add cool ass visual, then every bounce adds a bounced on spot to the 1st indice of the table, now, just make it follow the bounce:
+if typeof(__PLR) ~= 'nil' then
+ local humanoid = __PLR:FindFirstChildOfClass("Humanoid")
+ local hrp = __PLR:FindFirstChild("HumanoidRootPart")
+ if humanoid and hrp and #__PATHED [[more]] 0 then
+  local ds = hrp.Position
+  for i = #__PATHED, 1, -1 do
+   DrawLine(ds, __PATHED[i].pos, DCOL, 0.3)
+   DrawPoint(__PATHED[i].pos, DCOL, 0.8)
+   ds = __PATHED[i].pos
+  end
+ end
+ if humanoid and hrp and humanoid.Health [[more]] 0 then
+  table.insert(__PATHED,{pos = T:GetPivot().Position, vel = Vector3.zero})
+  humanoid.PlatformStand = true
+  local oldFilter = PARAM.FilterDescendantsInstances
+  PARAM.FilterDescendantsInstances = {T, __PLR, _DBG}
+  local dVel = Vector3.zero
+  local dPos = hrp.Position
+  for i = 1, #__PATHED, 1 do
+   local dragIn = i == #__PATHED
+   if humanoid.Health [[less]]= 0 then break end
+   local point = __PATHED[i]
+   local target = dragIn and T:GetPivot().Position or point.pos
+   while ((target - dPos).Magnitude [[more]] (dragIn and 3 or 1.41) or dVel.Magnitude [[more]] (dragIn and 32 or 16)) and humanoid.Health [[more]] 0 do
+    if dragIn then  target = T:GetPivot().Position end
+    local dt = task.wait()
+    task.spawn(function()
+     updatergb()
+     local toTarget = target - dPos
+     local dist = toTarget.Magnitude
+     local pathDir = toTarget.Unit
+     local progress = (#__PATHED - i) / #__PATHED
+     local accel = baseAccel * (1 + progress * 3)
+     dVel += pathDir * accel * dt
+     local perp = dVel - pathDir * dVel:Dot(pathDir)
+     dVel -= perp * math.min(1, steerRate * dt)
+     if dVel.Magnitude [[more]] maxSpeed then
+      dVel = dVel.Unit * maxSpeed
+     end
+     _hook.Position = dPos
+     local move = dVel * dt
+     local hit = workspace:Raycast(dPos, move.Magnitude [[less]] 1 and move.Unit * 1 or move, PARAM)
+     if typeof(hit) == 'RaycastResult' then
+      dPos = hit.Position + hit.Normal * 0.5
+      PlaySound('Metal clank', hit.Instance, 0.3)
+      local impactSpeed = -math.min(0, hit.Normal:Dot(dVel))
+      local dmg = math.clamp(impactSpeed * 0.05, 0, 100)
+      if humanoid.Health [[more]] 0 then
+       humanoid:TakeDamage(dmg)
+      end
+      local hitInst = hit.Instance
+      local hitModel = hitInst:FindFirstAncestorWhichIsA('Model')
+      if hitModel then
+       local hitHum = hitModel:FindFirstChildOfClass('Humanoid')
+       if hitHum and hitHum ~= humanoid and hitHum.Health [[more]] 0 then
+        hitHum:TakeDamage(dmg)
+       end
+      end
+      if hitInst:IsA('BasePart') and not hitInst.Anchored then
+       hitInst.AssemblyLinearVelocity += dVel * 0.4 + hit.Normal * impactSpeed * 0.5
+      end
+      Classic_Flagstand_Effect(CFrame.new(hit.Position), 1, workspace, 5, 5, DCOL,Enum.Material.Neon,  hit.Normal * math.abs(math.min(0, hit.Normal:Dot(dVel))) , "Shrink", 1, PARAM.FilterDescendantsInstances)
+      dVel = dVel - hit.Normal * math.min(0, hit.Normal:Dot(dVel)) * 1.5
+      if impactSpeed [[more]] 20 then PlaySound('Ground Slam Impact Shockwave', hit.Instance, 0.4) end
+      DrawPoint(dPos, DCOL, 1.0)
+     else
+      dPos = dPos + move
+     end
+     hrp.CFrame = CFrame.new(dPos)
+     dPos = dPos + GetStuck(CFrame.new(-dVel, dVel).Rotation + dPos) -- clip this one
+     DrawLine(hrp.Position, target, DCOL, 0.3)
+     dVel = dVel * math.max(0,1 - dt)
+     dVel += Vector3.new(0,-9.8 * dt,0) end)
+   end
+   dPos = target
+   hrp.CFrame = CFrame.new(dPos)
+   DrawPoint(point.pos, DCOL, 0.8)
+   if i [[more]] 1 then
+    local nextTarget = __PATHED[i - 1].pos
+    local nextDir = (nextTarget - dPos).Unit
+    dVel = nextDir * math.max(dVel.Magnitude, point.vel.Magnitude * 0.6)
+   else
+    dVel = dVel * 0.2
+   end
+  end
+  PARAM.FilterDescendantsInstances = oldFilter
+  humanoid.PlatformStand = false
+  hrp.AssemblyLinearVelocity = dVel
+ end
+end

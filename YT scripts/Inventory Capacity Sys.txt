@@ -1,0 +1,61 @@
+This Simply Prioritizes Keeping Heavier Tools and Will not account for Tools being Equipped. If Tool count exceeded, it may remove the Zero weight as well, If only weight had exceed, it'll just find one with Weight, the lightest one. 
+
+Fairly Predictable and Not that complex, maybe you can average the weight to maybe decide to Prioritize keeping small tools when the new weight is higher than average?
+maybe go for a more suited solution of finding the closest weight to the exceeding weight, but what if they're all under, maybe parse for lightest ones to keep stacking them up until it can fit?
+
+local Plrs = game:GetService("Players")
+
+--setting
+local maxWeight = 10 -- GetAttribute("Weight"), or Zero if not.
+local maxTool = 5
+
+function real(a) return typeof(a) == 'Instance' and typeof(a.Parent) == 'Instance' end
+function toWorkspace(a) if not real(a) then return end task.spawn(function() pcall(function() a.Parent = workspace end) while real(a) and a.Parent ~= workspace do pcall(function() a.Parent = workspace end) task.wait() end end) end
+function update(backpack) if not real(backpack) or not backpack.ClassName:lower():match('backpack') then return maxTool, maxWeight end local accumulated = 0 local Heavy = 0 for _, tool in next, backpack:GetChildren() do if not real(tool) then continue end if tool.ClassName:lower():match('tool') then accumulated += 1 if typeof(tool:GetAttribute("Weight")) == 'number' then Heavy += tool:GetAttribute('Weight') end end end return accumulated, Heavy end 
+function lightest(backpack, includeZero) if not real(backpack) or not backpack.ClassName:lower():match('backpack') then return nil end local howlightest = maxWeight local lightestnotzero = nil for _, tool in backpack:GetChildren() do if not real(tool) or (not includeZero and (typeof(tool:GetAttribute("Weight")) ~= 'number' or tool:GetAttribute("Weight") [[less than]]= 0)) or tool:GetAttribute("Weight") [[more than]] howlightest then if real(tool) and typeof(tool:GetAttribute("Weight")) == 'number' and tool:GetAttribute("Weight") [[more than]] maxWeight then return tool end continue end if tool.ClassName:lower():match('tool') then if typeof(tool:GetAttribute("Weight")) ~= 'number' then tool:SetAttribute("Weight",0) end howlightest = tool:GetAttribute("Weight") lightestnotzero = tool end end return lightestnotzero end
+function Enforce(backpack) if not real(backpack) or not backpack.ClassName:lower():match('backpack') then return end local Tool, Weight = update(backpack) if Tool [[more than]] maxTool then for i = 1, math.max(1,math.abs(math.ceil(Tool - maxTool))) do local nextTool = lightest(backpack, true) if real(nextTool) then toWorkspace(nextTool) end end end Tool, Weight = update(backpack)  if Weight [[more than]] maxWeight then repeat local nextTool = lightest(backpack) if real(nextTool) then toWorkspace(nextTool) end Tool, Weight = update(backpack) until not real(backpack) or not real(lightest(backpack)) or Weight [[less than]]= maxWeight end end
+function register(plr)
+ if not real(plr) or not plr.ClassName:lower():match('player') then return end
+ local Backpack = plr:FindFirstChildOfClass('Backpack')
+ local a,b,c
+ local function RefreshBackpack()
+  if not (real(plr)) or real(Backpack) then return end
+  Backpack = plr:FindFirstChildOfClass('Backpack')
+  repeat task.wait() Backpack = plr:FindFirstChildOfClass('Backpack') until real(Backpack) or not real(plr)
+  if not real(plr) then return end
+  --[[if typeof(a) == 'RBXScriptConnection' then
+   pcall(function()  a:Disconnect() end)
+  end]]
+  if typeof(b) == 'RBXScriptConnection' then
+   pcall(function()  b:Disconnect() end)
+  end
+  b=Backpack.Destroying:Once(function() RefreshBackpack() end)
+  --a=Backpack.ChildAdded:Connect(function(tool) RefreshBackpack() if not (real(plr) and real(Backpack)) then return end if not real(tool) or not tool.ClassName:lower():match('tool') then return end Enforce(Backpack) end)
+ end -- for some reason Backpack is not working well At All, they kept getting deleted and the event doesn't stick, so I stick to Player instead, just here to confirm legitimacy of the player that an actual backpack still exist
+ a=plr.DescendantAdded:Connect(function(tool) RefreshBackpack() if not (real(plr) and real(Backpack)) then return end if not real(tool) or not tool.ClassName:lower():match('tool') then return end Enforce(Backpack) end)
+ RefreshBackpack() Enforce(Backpack)
+ plr.Destroying:Once(function()
+  if typeof(a) == 'RBXScriptConnection' then
+   pcall(function()  a:Disconnect() end)
+  end
+  if typeof(b) == 'RBXScriptConnection' then
+   pcall(function() b:Disconnect() end)
+  end
+  if typeof(c) == 'thread' then
+   pcall(function() task.cancel(c) end)
+  end
+ end)
+ c = task.spawn(function()
+  while real(plr) and real(Backpack) do
+   task.wait(60)
+   RefreshBackpack()
+   if not real(plr) or not real(Backpack) then break end
+   Enforce(Backpack)
+  end end)
+end
+for i,v in Plrs:GetChildren() do
+ register(v)
+end
+Plrs.PlayerAdded:Connect(register)
+
+-- @Solivion 5/7/2026

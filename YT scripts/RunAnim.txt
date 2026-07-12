@@ -1,0 +1,62 @@
+--lazy r6 anim
+local character = script.Parent
+local CHARSCALE, Scale = 1, 1
+local rootpart = character:WaitForChild("HumanoidRootPart")
+local torso = character:WaitForChild("Torso")
+local leftleg = torso:WaitForChild("Left Hip")
+local rightleg = torso:WaitForChild("Right Hip")
+local leftarm = torso:WaitForChild("Left Shoulder")
+local rightarm = torso:WaitForChild("Right Shoulder")
+local humanoidrootpart = rootpart:WaitForChild('RootJoint')
+rightleg.C1 = CFrame.new()
+leftleg.C1 = CFrame.new()
+leftarm.C1 = CFrame.new()
+rightarm.C1 = CFrame.new()
+humanoidrootpart.C1 = CFrame.new()	
+local lt = 0
+local movementxy = Vector3.new()
+local VelocitySpin = Vector3.new()
+while true do
+	local Delta = task.wait() or 0
+	lt += Delta
+	boostanim = 1
+	lasto = character:FindFirstChildOfClass('Tool') ~= nil -- tool anim
+	local RootVel = rootpart.AssemblyLinearVelocity
+	if RootVel.Magnitude <= 0.01 then lt = 0 end
+	local absvel = rootpart.CFrame:VectorToObjectSpace(RootVel)
+	local yvelo = absvel.Y
+	local Speed = (1 - (1 / 100000000) ^ Delta) or 0.3
+	local DELTA_ANIM = lt
+	local ABSOLUTE_DTA = math.abs(DELTA_ANIM)
+	local DTA9_5 = ABSOLUTE_DTA * 9.5
+	local COSDTA9_5 = math.cos(DTA9_5)
+	local sindta9_5 = math.sin(DTA9_5)
+	if Vector3.new(absvel.X / 2, -yvelo / 5, 0).Magnitude >= movementxy.Magnitude then
+		movementxy = Vector3.new(absvel.X / 2, -yvelo / 5, 0)
+	else
+		movementxy = movementxy:Lerp(Vector3.new(), 0.1)
+	end
+	local Scale: number = CHARSCALE
+	VelocitySpin = VelocitySpin:lerp(Vector3.new(absvel.X, 0, absvel.Z), Speed)
+	local xzVelocity: Vector3 = VelocitySpin
+	local XZMAG: number = xzVelocity.Magnitude
+	local XZMAG_16: number = XZMAG / 16
+	local XZMAG_24: number = XZMAG / 24
+	local rootrot = CFrame.fromEulerAnglesXYZ(absvel.z / 60, (sindta9_5 * (XZMAG_16) / 4.25), (sindta9_5 * (XZMAG_16) / 8.5) + (-absvel.x / 60))
+	local Root = CFrame.new(0, (math.sin(ABSOLUTE_DTA * 19) * (XZMAG_16) / 12) * Scale, 0) * rootrot
+	local XScale = lasto and -Scale / 2 or Scale  
+	local RA = CFrame.new((1.5 - COSDTA9_5 * (XZMAG_16) / 5) * Scale, (0.25 - COSDTA9_5 * (XZMAG_16) / 5) * XScale, (-math.cos(DTA9_5 + (absvel.z / 30)) * (XZMAG_16) / 1.5) * XScale) * (lasto and (CFrame.Angles(1.5, 0, 0) * rootrot:Inverse()) or (CFrame.fromEulerAnglesXYZ((-absvel.z / 15) * sindta9_5 + math.rad(30) * (XZMAG_24), math.rad(40) * sindta9_5 * (XZMAG_24), math.rad(-5) + (absvel.x / 15) * sindta9_5) * CFrame.Angles(0, 0, math.rad(-60) * sindta9_5 * (XZMAG_24)))) * CFrame.new(0, -0.5, 0)
+	local LA = CFrame.new((-1.5 - COSDTA9_5 * (XZMAG_16) / 5) * Scale, (0.25 + COSDTA9_5 * (XZMAG_16) / 5) * Scale, (math.cos(DTA9_5 + (absvel.z / 30)) * (XZMAG_16) / 1.5) * Scale) * CFrame.fromEulerAnglesXYZ((-absvel.z / 15) * -sindta9_5 + math.rad(30) * (XZMAG_24), math.rad(40) * sindta9_5 * (XZMAG_24), math.rad(5) + (-absvel.x / 15) * sindta9_5) * CFrame.Angles(0, 0, math.rad(-60) * sindta9_5 * (XZMAG_24)) * CFrame.new(0, -0.5, 0)
+	local RL = CFrame.new((0.5 + sindta9_5 * (lasto and -1 or 1) * 0.125) * Scale, (-1 - COSDTA9_5 * (XZMAG_16) / 2.5) * Scale, (math.cos(DTA9_5 + (absvel.z / 20)) * (XZMAG_16) / 1.5) * Scale) * CFrame.fromEulerAnglesXYZ((absvel.z / 20) * sindta9_5 * boostanim, math.rad(50 * (xzVelocity.Z / 16) / 4.25) - (sindta9_5 * (XZMAG_16) / 4.25), math.rad(-boostanim) - (-absvel.x / 20) * COSDTA9_5 * boostanim) * CFrame.fromEulerAnglesXYZ(math.rad(2), 0, 0) * CFrame.new(0, -1, 0)
+	local LL = CFrame.new((-0.5 + math.sin(-DTA9_5) * -0.125) * Scale, (-1 + COSDTA9_5 * (XZMAG_16) / 2.5) * Scale, (-math.cos(DTA9_5 + (absvel.z / 20)) * (XZMAG_16) / 1.5) * Scale) * CFrame.fromEulerAnglesXYZ((absvel.z / 20) * -sindta9_5 * boostanim, math.rad(-50 * (xzVelocity.Z / 16) / 4.25) - (sindta9_5 * (XZMAG_16) / 4.25), math.rad(boostanim) + (-absvel.x / 20) * COSDTA9_5 * boostanim) * CFrame.fromEulerAnglesXYZ(math.rad(-2), 0, 0) * CFrame.new(0, -1, 0)
+	rightlegC0 = rightleg.C0:lerp(RL, Speed)
+	leftlegC0 = leftleg.C0:lerp(LL, Speed)
+	rightarmC0 = rightarm.C0:lerp(RA, Speed)
+	leftarmC0 = leftarm.C0:lerp(LA, Speed)
+	humanoidrootpartC0 = humanoidrootpart.C0:lerp(Root, Speed)	
+	rightarm.C0 = rightarmC0
+	leftarm.C0 = leftarmC0
+	rightleg.C0 = rightlegC0
+	leftleg.C0 = leftlegC0
+	humanoidrootpart.C0 = humanoidrootpartC0
+end

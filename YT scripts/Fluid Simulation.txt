@@ -1,0 +1,159 @@
+local RunService = game:GetService('RunService')
+local GRID_SIZE = 8
+local SPACING = 1
+local FLUID_COLOR = Color3.fromRGB(40, 130, 220)
+local FLUID_TRANSPARENCY = 0.2
+local Particles: {{Pos: Vector3, Vel: Vector3}} = {}
+local BallPool = {}
+local startX = -(GRID_SIZE - 1) * SPACING / 2
+local startZ = -(GRID_SIZE - 1) * SPACING / 2
+
+--Add particles
+for i = 1, 7 do for x = 0, GRID_SIZE - 1 do for z = 0, GRID_SIZE - 1 do table.insert(Particles, {Pos = Vector3.new(startX + x * SPACING, 15 + i * SPACING, startZ + z * SPACING),Vel = Vector3.new(0, 0, 0),}) end end  end
+
+local oldFolder = workspace:FindFirstChild("FluidRender")
+if oldFolder then oldFolder:Destroy() end
+local renderFolder = Instance.new("Folder")
+renderFolder.Name = "FluidRender"
+renderFolder.Parent = workspace
+
+local param = RaycastParams.new()
+param.RespectCanCollide = true
+param.FilterDescendantsInstances = {renderFolder}
+param.FilterType = Enum.RaycastFilterType.Exclude
+
+function getStretchedSphere(velocity: Vector3,baseSize: Vector3,position: Vector3,maxStretch: number?,speedThreshold: number?)
+	local speed = velocity.Magnitude
+	maxStretch = maxStretch or 2.5
+	speedThreshold = speedThreshold or 50
+	if speed < 0.1 then
+		return baseSize, CFrame.new(position)
+	end
+	local t = math.clamp(speed / speedThreshold, 0, 1)
+	local stretch = 1 + t * (maxStretch - 1)
+	local squash = 1 / math.sqrt(stretch)
+	local newSize: Vector3
+	local cframe: CFrame
+	local standardScale = Vector3.new(squash, squash, stretch)
+	local raycastDirection = velocity.Unit * ((baseSize * standardScale).Z / 2)
+	local raycastResult = workspace:Raycast(position, raycastDirection, param)
+	if raycastResult then
+		-- this part by assistant, idk man I struggle with how I should stretch it, I can do the surface align tho.
+		local normal = raycastResult.Normal
+		local upVector = velocity
+		if math.abs(normal:Dot(velocity.Unit)) > 0.999 then
+			if math.abs(normal.Y) > 0.99 then
+				upVector = Vector3.new(1, 0, 0)
+			else
+				upVector = Vector3.new(0, 1, 0)
+			end
+		end
+		cframe = CFrame.lookAt(position, position + normal, upVector)
+		local hitScale = Vector3.new(stretch, stretch, squash)
+		newSize = baseSize * hitScale
+	else
+		cframe = CFrame.lookAt(position, position + velocity)
+		newSize = baseSize * standardScale
+	end
+	return newSize, cframe
+end
+for i,v in Particles do -- Pooler
+	local Ball = Instance.new('Part', renderFolder)
+	Ball.Anchored = true
+	Ball.CanCollide = false
+	Ball.Shape = Enum.PartType.Block
+	Ball.Material = Enum.Material.Neon
+	Ball.Color = FLUID_COLOR
+	Ball.Transparency = FLUID_TRANSPARENCY
+	Ball.Size = Vector3.new(2, 2, 2)
+	Ball.Position = v.Pos Ball.Transparency = .5
+	Ball.Name = tostring(i)
+	Instance.new("SpecialMesh", Ball).MeshType = Enum.MeshType.Sphere
+	Ball:FindFirstChildOfClass('SpecialMesh').Scale = Vector3.new(2,2,2)
+	table.insert(BallPool, Ball)
+end
+
+local function renderAll()
+	for i,v in Particles do  if typeof(BallPool[i]) ~= 'Instance' then continue end
+		pcall(function() local size, cf = getStretchedSphere(v.Vel, Vector3.new(1,1,1), v.Pos, nil, 100) BallPool[i].CFrame = cf BallPool[i].Size = size end)
+	end
+end
+
+function GetStuck(CF: CFrame): Vector3 -- return escape vector
+	local Left = CF.Position - CF.RightVector
+	local Right = CF.Position + CF.RightVector
+	local Front = CF.Position + CF.LookVector
+	local Back = CF.Position - CF.LookVector
+	local Top = CF.Position + CF.UpVector
+	local Bottom = CF.Position - CF.UpVector
+	local LeftRay = workspace:Raycast(Left, Right - Left, param)
+	local RightRay = workspace:Raycast(Right, Left - Right, param)
+	local DownRay = workspace:Raycast(Top, Bottom - Top, param)
+	local UpRay = workspace:Raycast(Bottom, Top - Bottom, param)
+	local ForwardRay = workspace:Raycast(Back, Front - Back, param)
+	local BackwardRay = workspace:Raycast(Front, Back - Front, param)
+	local escape = Vector3.zero
+	if typeof(LeftRay) == "RaycastResult" then escape += (Left - Right).Unit * (2 - LeftRay.Distance) end
+	if typeof(RightRay) == "RaycastResult" then escape += (Right - Left).Unit * (2 - RightRay.Distance) end
+	if typeof(DownRay) == "RaycastResult" then escape += (Top - Bottom).Unit * (2 - DownRay.Distance) end
+	if typeof(UpRay) == "RaycastResult" then escape += (Bottom - Top).Unit * (2 - UpRay.Distance) end
+	if typeof(ForwardRay) == "RaycastResult" then escape += (Back - Front).Unit * (2 - ForwardRay.Distance) end
+	if typeof(BackwardRay) == "RaycastResult" then escape += (Front - Back).Unit * (2 - BackwardRay.Distance) end
+	return escape
+end
+
+--FAKE IT TIL WE MAKE IT
+function ProcessParticles(dt)
+	for i,v in Particles do
+		for i2,v2 in Particles do
+			if i2 <= i then continue end
+			local Dist = (v.Pos - v2.Pos).Magnitude
+			if Dist <= 2 then -- soft push, 2 is the maximum radius they can affect each other, 1 is the ideal dist
+				if Dist <= 0 then continue end
+				if Dist < 1 then -- pushy
+					local Force = (v.Pos - v2.Pos).Unit * math.clamp(200 / Dist ^ 2, 0, 800) -- lowky it kinda blast off so I needed a limit
+					v.Vel += Force * dt
+					v2.Vel -= Force * dt
+				else -- idk why but cohesive too?
+					local Force = (v.Pos - v2.Pos).Unit * 50 * (Dist - 1) * (2 - Dist) -- [[fade out cohesion at 2]]
+					v.Vel -= Force * dt
+					v2.Vel += Force * dt
+				end
+				--to make them go together
+				local velocityDifference = v2.Vel - v.Vel
+				local viscosityStrength = 0.1 * (1 - (Dist/2))
+				v.Vel += velocityDifference * viscosityStrength * dt
+				v2.Vel -= velocityDifference * viscosityStrength * dt
+			end
+		end
+	end
+	for i,v in Particles do
+		if v.Vel.Magnitude > 100 then v.Vel = v.Vel.Unit * 100 end
+		local motion =  v.Vel * dt
+		local Casted = workspace:Raycast(v.Pos, motion, param)
+		if Casted and Casted.Normal:Dot(v.Vel) < 0 then motion = v.Vel.Unit * math.max(0,Casted.Distance - 0.1) v.Vel = v.Vel - (v.Vel:Dot(Casted.Normal) * Casted.Normal * 1.25) end
+		local stucku = GetStuck(typeof(BallPool[i]) == 'Instance' and BallPool[i].CFrame or CFrame.new(v.Pos))  v.Pos += stucku v.Vel += stucku
+		v.Pos += motion
+		v.Vel += Vector3.new(0,-workspace.Gravity * dt,0)
+		if v.Pos.Magnitude > 1000 then
+			v.Pos = Vector3.new()
+		end
+		if v.Pos.Y < -500 then -- reset with a flung incase it fell off the world
+			v.Pos = Vector3.new()
+			--v.Pos = v.Pos + Vector3.new(0,-v.Pos.Y,0)
+			v.Vel = Vector3.new(v.Vel.X,math.abs(v.Vel.Y),v.Vel.Z)
+		end
+		v.Vel *= math.max(0,1 - dt)
+		if v.Vel.Magnitude > 100 then v.Vel = v.Vel.Unit * 100 end
+	end
+end
+
+RunService.Heartbeat:Connect(function(dt)
+	task.desynchronize() if dt > .2 then return end
+	ProcessParticles(dt)
+end)
+
+while task.wait() do
+	task.synchronize()
+	renderAll()
+end

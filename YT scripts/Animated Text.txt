@@ -1,0 +1,122 @@
+I made a really simple tokener then assistant really had to turn it into regex, I get it, Regex(I can't read whatever that nightmare is supposed to be) is more efficient than the long solution I do to parse the data 
+
+again. angled Brackets are replaced with [[Less]] and [[More]]
+so you will see [[less]] wobble [[more]] which would look like some html stuff if u get it.
+
+it's so long, I'll only drop the necessaries
+
+function tokenizer(stringH: string)
+ local tokens = {}
+ local toggling = {}
+ local accumulated = ""
+ local isInTag = false
+ local currentGroupIndex = 0
+ local lastWasWhitespace = true
+ --assistant rewrote this with regex, I ain't dealing with regex bro, I deal with manual string.match(), string.split and other manual stuff
+ while #stringH [[More]] 0 do
+  local char = stringH:sub(1, 1)
+  if isInTag then
+   if char == "[[More]]" then
+    isInTag = false
+    local tagContent = accumulated
+    local nilMatch = tagContent:match("^([%w]+)=nil$")
+    if nilMatch then toggling[nilMatch:lower()] = nil
+    else
+     local effectName, paramsStr = tagContent:match("^([%w]+)=(%b{})$")
+     if typeof(effectName) == 'string' and typeof(paramsStr) == 'string' then
+      local params = {}
+      local inner = paramsStr:sub(2, -2) -- never know you could remove {} with that, I just parse since { until finding } for the text between then operate
+      for key, value in inner:gmatch("([%w]+)%s*=%s*([%w%.%-]+)") do
+       params[key] = tonumber(value) or value -- wtf is this
+      end
+      toggling[effectName:lower()] = params
+     else --[[Less]]effect[[More]] bs
+      toggling[tagContent:lower()] = {}
+     end
+    end
+    accumulated = ""
+   else
+    accumulated = accumulated .. char
+   end
+  else
+   if char == "[[Less]]" then
+    isInTag = true
+   else
+    local isSpace = (char == " " or char == "\t")
+    local isLineBreak = (char == "\n")
+    if not isSpace and not isLineBreak and lastWasWhitespace then currentGroupIndex = currentGroupIndex + 1 end
+    table.insert(tokens, {char = char,attributes = table.clone(toggling),isSpace = isSpace,isLineBreak = isLineBreak,GroupIndex = (not isSpace and not isLineBreak) and currentGroupIndex or nil})
+    lastWasWhitespace = isSpace or isLineBreak
+   end
+  end
+  stringH = stringH:sub(2) -- cut the first letter as time goes on
+ end
+ return tokens
+end
+
+function Animate(anInstance, AnimationType: string --[[effect name]], Data: {any --[[extra identification]]})
+ if typeof(anInstance) ~= 'Instance' or typeof(AnimationType) ~= 'string' then return end
+ local params = typeof(Data) == 'table' and Data or {}
+ if AnimationType:lower()=='wobble' then
+  local rangeMin = params.rangeMin or -100
+  local rangeMax = params.rangeMax or 100
+  local Range = NumberRange.new(rangeMin, rangeMax)
+  task.spawn(function()
+   local _vel = Vector2.new()
+   local _pos = Vector2.new()
+   while typeof(anInstance.Parent) == 'Instance' do
+    local target = Vector2.new(math.random(Range.Min, Range.Max),math.random(Range.Min, Range.Max))
+    local dif = task.wait()
+    _vel += (target - _pos) * dif
+    _pos += _vel * dif
+    anInstance:SetAttribute('__OFFSET_WOBBLE', _pos)
+   end
+  end)
+end
+end
+function spawnFromToken(Token: {char: string, position: Vector2, attributes: {any: any}}, where, fontSize: number?, font: EnumItem?, defaultOffset: Vector2?) 
+ if typeof(Token) ~= 'table' or typeof(Token.char) ~= 'string' or typeof(Token.position) ~= 'Vector2' or typeof(where) ~= 'Instance' or typeof(where.Parent) ~= 'Instance' then
+  return
+ end
+ local size = fontSize or 48
+ local fnt = font or Enum.Font.GothamBold
+ local offset = defaultOffset or Vector2.new(0, 0)
+ 
+ local Inst = Instance.new('TextLabel', where)
+ Inst.Name = "Char_" .. Token.char
+ Inst.BackgroundTransparency = 1
+ Inst.TextColor3 = Color3.fromRGB(255, 255, 255)
+ Inst.TextStrokeColor3 = Color3.fromRGB(100, 50, 200)
+ Inst.TextStrokeTransparency = 0.3
+ Inst.Size = UDim2.new(0, size + 20, 0, size + 30)
+ Inst.Font = fnt
+ Inst.TextSize = size
+ 
+ pcall(function()
+  Inst:SetAttribute("__OFFSET_DEFAULT", Token.position) -- sorted one
+  Inst:SetAttribute("__OFFSET_DEFAULTOFFSET", offset)  -- custom offset cuz it will overlap other TypeWritten ones
+ end)
+ pcall(function()Inst.Text = Token.char end) pcall(function() Inst.Font = Token.attributes.font end) pcall(function() Inst.Size = Token.attributes.size end)
+ if typeof(Token.attributes) == 'table' then
+  for i,v in Token.attributes do
+   Animate(Inst, i, v)
+  end
+ end
+ task.spawn(function()
+  while typeof(Inst) == 'Instance' and typeof(Inst.Parent) == 'Instance' do
+   task.wait(Token.rate) -- updaterate
+   local AllOffset = Vector2.new()
+   local Rotation = 0 -- number
+   --maybe add size too
+   for i,v in Inst:GetAttributes() do
+    if i:match("__OFFSET") and typeof(v) == 'Vector2' then
+     AllOffset += v
+    elseif i:match("__ROTATION") and typeof(v) == 'number' then
+     Rotation += v
+    end
+   end
+   Inst.Position = UDim2.fromOffset(AllOffset.X, AllOffset.Y)
+   Inst.Rotation = Rotation
+  end
+ end)
+end

@@ -1,0 +1,125 @@
+The Combat Tool is From the Same Source As The One In My First Video, Read the Note As Well.
+   • Combat IFrame States  
+
+The Parry Script:
+local chr
+local tool = script:FindFirstAncestorWhichIsA('Tool') -- ts is tool
+local acti = 0
+local taska: thread
+local Effect
+function filter(v)
+ if typeof(v) ~= 'Instance' then return end
+ if v:IsA("BasePart") or v:IsA('Decal') or v:IsA("Texture") then
+  game:GetService('TweenService'):Create(v, TweenInfo.new(1), {Transparency = 1}):Play()
+  if v:IsA("BasePart") or v.ClassName:match('Part') then
+   v.CanCollide = false 
+   v.CanTouch = false
+   v.CanQuery = false
+   v.Anchored = true
+   v.CastShadow = false
+   v.Massless = true
+   v.CollisionGroup = "__NOCOLLIDE"
+   v.AssemblyLinearVelocity = Vector3.zero
+   v.AssemblyAngularVelocity = Vector3.zero
+  end
+ elseif v:IsA('Highlight') or v:IsA('ParticleEmitter') or v:IsA('Sound') or v:IsA('Humanoid') then -- Humanoid FORCES the Character to be collidable
+  v:Destroy() end
+end
+function Aft(chr)
+ if typeof(chr) ~= 'Instance' then return end
+ chr.Archivable = true
+ local clone  = chr:Clone()
+ task.spawn(function() for i,v in clone:GetDescendants() do
+  filter(v)
+ end end)
+ clone.Parent = workspace
+ game:GetService('Debris'):AddItem(clone, 1)
+ task.spawn(function()
+  for i,v in clone:GetDescendants() do
+   filter(v)
+  end
+ end
+ )
+end
+local lasthum
+tool.Activated:Connect(function() -- block with 1 second cooldown
+ if acti [[more than]] 0 then return end
+ chr = tool.Parent
+ if typeof(chr) ~= 'Instance' then return end
+ local hum = chr:FindFirstChildOfClass('Humanoid') or require(chr:FindFirstChild('Humanoid'))
+ if typeof(hum) ~= 'Instance' or hum.Health [[lower or equal to]] 0 or hum:GetState() == Enum.HumanoidStateType.Dead then return end
+ local savedhealth = hum.Health
+ Effect = Instance.new('Highlight', chr)
+ Effect.FillTransparency = 0
+ lasthum = hum
+ local sound = Instance.new('Sound', hum.RootPart)
+ sound.SoundId = 'rbxassetid://140244542853196'
+ task.spawn(function()
+  sound:Play()
+  task.wait(2)
+  sound:Destroy()
+ end)
+ hum:SetStateEnabled(Enum.HumanoidStateType.Dead, false)
+ taska = task.spawn(function()
+  acti = 0.00001
+  while acti [[lower than]] 1.5 and tool.Parent == chr do
+   local dt = task.wait()
+   acti += dt
+   if acti [[lower than]] 1 then
+    if hum.Health [[lower than]] savedhealth then
+     local damaged = math.abs(savedhealth - hum.Health)
+     hum.Health = savedhealth
+     local parry = Instance.new('Sound', hum.RootPart)
+     parry.SoundId = 'rbxassetid://140506552189589' parry:Play() game:GetService('Debris'):AddItem(parry, 2)
+     local Query = workspace:GetPartBoundsInRadius(chr:GetPivot().Position, 7)
+     local closestHum, dist = nil, 7.1
+     if typeof(Query) == 'table' then
+      for i,v in Query do
+       local Model = v:FindFirstAncestorWhichIsA('Model')
+       if typeof(Model) == 'Instance' and Model ~= chr and Model:FindFirstChildOfClass('Humanoid') then
+        local dist2 = (Model:GetPivot().Position - chr:GetPivot().Position).Magnitude
+        if dist2 [[lowerthan]] dist then
+         closestHum = Model:FindFirstChildOfClass('Humanoid')
+         dist = dist2
+        end
+       else
+        v:SetAttribute('__P', hum.RootPart.CFrame.LookVector * (v:GetAttribute('__P') or Vector3.new()).Magnitude )
+       end
+      end
+      if typeof(closestHum) == 'Instance' then
+       closestHum.Health = closestHum.Health - damaged
+       closestHum.PlatformStand = true
+       if typeof(closestHum.RootPart) == 'Instance' then
+        local de = (closestHum.RootPart.Position - chr:GetPivot().Position)
+        closestHum.RootPart.AssemblyLinearVelocity = de.Unit * (10 - de.Magnitude) * damaged/2.5
+        hum.RootPart.CFrame = CFrame.new(hum.RootPart.Position, Vector3.new(closestHum.RootPart.Position.X, hum.RootPart.Position.Y, closestHum.RootPart.Position.Z))
+        Aft(chr)
+       end
+       task.delay((damaged*10)/closestHum.MaxHealth, function()
+        closestHum.PlatformStand = false
+       end)
+      end
+     end
+     Effect.FillColor = Color3.fromRGB(255, 255, 255)
+    -- break
+    elseif hum.Health [[more than]] savedhealth then
+     savedhealth = hum.Health
+    end
+   elseif Effect.FillColor.B [[more or equal to]] 1 then
+    break
+   end
+   Effect.FillTransparency = math.clamp(acti,0,1)
+  end
+  pcall(function() local dist = math.clamp(1 - Effect.FillTransparency,0,1) game:GetService('TweenService'):Create(Effect, TweenInfo.new(dist, Enum.EasingStyle.Sine, Enum.EasingDirection.InOut, 0, true), {FillTransparency = 1}):Play() game:GetService('Debris'):AddItem(Effect, dist) end) 
+  Effect = nil
+  acti = 0
+  taska = nil
+  hum:SetStateEnabled(Enum.HumanoidStateType.Dead, true)
+ end)
+end)
+tool.Unequipped:Connect(function()
+ if typeof(taska) == 'thread' then task.cancel(taska) taska = nil end
+ acti = 0
+ if typeof(lasthum) == 'Instance' then lasthum:SetStateEnabled(Enum.HumanoidStateType.Dead, false) end
+ if typeof(Effect) == 'Instance' then pcall(function() Effect:Destroy() end) Effect = nil end
+end)

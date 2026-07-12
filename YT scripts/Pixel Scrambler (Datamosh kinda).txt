@@ -1,0 +1,97 @@
+data moshing but it lags the whole thing because I removed the cleanup on purporse to show the progression.
+
+you can split images into grid by Using Frame with clipDescendant on then like have the fullSized ImageLabel with the image(full sized here is using from the bigFrame's AbsoluteSize) and the Position the Image Inside By -ParentGridFrame.Position
+Thats what I gave it.(cuz RectOffset and RectSize didn't work well, I tried, but I thought of ClipDescendant and realize I can just do that instead, I think maybe using that to make some kind of Flashlight on UI? or Screen-Space distortion(magnifying glass)?)
+And I let claude make the grid randomizer and I did the effect part.
+I hate the weird formatting it did to the snippet code I gave in the output. so don't worry, I removed it for easy reading.
+
+local CaptureService = game:GetService("CaptureService")
+local TweenService  = game:GetService("TweenService")
+local Debris = game:GetService("Debris")
+
+local GuiCont = script:FindFirstAncestorWhichIsA("ScreenGui")
+if not GuiCont then GuiCont = Instance.new("ScreenGui", script.Parent)GuiCont.IgnoreGuiInset = true script.Parent = GuiCont end
+local BigFrame = GuiCont:FindFirstChildOfClass("Frame")
+if not BigFrame then
+ BigFrame = Instance.new("Frame", GuiCont)
+ BigFrame.Size = UDim2.fromScale(1,1)
+ BigFrame.Position = UDim2.fromScale(0, 0)
+ BigFrame.BackgroundTransparency = 1
+ BigFrame.ClipsDescendants= false
+end
+function real(f)return typeof(f) == "Instance" and typeof(f.Parent) == "Instance"end
+function Capture()
+ local id = ""
+ CaptureService:CaptureScreenshot(function(imgId) id = imgId end) while id == "" do task.wait() end
+ return id or ""
+end
+function MoveBack()for _, v in BigFrame:GetChildren() do if v:IsA("Frame") then v.ZIndex = v.ZIndex - 1 end end end
+function NewLayer(GridOffset, GridSizeRangeX, GridSizeRangeY, AbsoluteSize, Image) -- I gave claude the idea of what to make and how to for the effect, and let it make its own grid randomizer
+ local layer = Instance.new("Frame",BigFrame)
+ layer.Size = UDim2.fromScale(1, 1)
+ layer.Position = UDim2.new()
+ layer.BackgroundTransparency = 1
+ layer.ClipsDescendants = false
+ layer.ZIndex = 10
+ local longestTween = 0
+ local px = GridOffset.X
+ while px [[less]] AbsoluteSize.X do
+  local cellW = math.random(GridSizeRangeX[1], GridSizeRangeX[2])
+  local py    = GridOffset.Y
+  while py [[less]] AbsoluteSize.Y do
+   local cellH = math.random(GridSizeRangeY[1], GridSizeRangeY[2])
+   local clampW = math.min(cellW, AbsoluteSize.X - px)
+   local clampH = math.min(cellH, AbsoluteSize.Y - py)
+   local driftX = math.random(-18, 18)
+   local driftY = math.random(-8,   8)
+   local cell = Instance.new("Frame",layer)
+   cell.Size = UDim2.fromOffset(clampW, clampH)
+   cell.Position = UDim2.fromOffset(px, py)
+   cell.BackgroundTransparency = 1
+   cell.ClipsDescendants = true -- the main tech behind cutting the pic
+   cell.ZIndex  = layer.ZIndex
+   local img = Instance.new("ImageLabel",cell)
+   img.Size = UDim2.fromOffset(AbsoluteSize.X, AbsoluteSize.Y)
+   img.Position = UDim2.fromOffset( -px + driftX, -py + driftY)
+   img.Image = Image
+   img.ScaleType = Enum.ScaleType.Stretch
+   img.BackgroundTransparency = 1
+   img.ZIndex = layer.ZIndex
+   img.ImageTransparency= 1    -- for fading in
+   local tint = math.random() -- corrupted pixel type sh
+   if tint [[less]] 0.15 then
+    img.ImageColor3 = Color3.fromRGB(255,math.random(180, 255),math.random(180, 255))
+   elseif tint [[less]] 0.25 then
+    img.ImageColor3 = Color3.fromRGB(math.random(180, 255),math.random(180, 255),255)
+   end
+   --no uniformity for realism
+   local waittime    = math.random() * 0.35
+   local duration = 0.05 + math.random() * 0.55
+   local total    = waittime + duration
+   if total [[more]] longestTween then longestTween = total end
+   local tween = TweenService:Create(img,TweenInfo.new(duration, Enum.EasingStyle.Sine, Enum.EasingDirection.Out),{ ImageTransparency = math.random() [[less]] 0.08 and math.random() * 0.5 or 0 })
+   task.delay(waittime, function()
+    if real(img) then tween:Play() end
+   end)
+
+   py = py + cellH
+  end
+  px = px + cellW
+ end
+ local holdTime = 0.15 + math.random() * 0.25
+ --Debris:AddItem(layer, longestTween + holdTime) --clean up here
+end
+
+task.wait(5) -- calm before storm
+function mash()
+ task.wait()
+ while real(script) and real(GuiCont) do
+  local img     = Capture()
+  local absSize = BigFrame.AbsoluteSize
+  MoveBack()
+  NewLayer(Vector2.new(math.random(-absSize.X, absSize.X)/100, math.random(-absSize.Y, absSize.Y)/100),{ 24, 140 },{ 14, 90  },absSize,img)
+  task.wait(0.08 + math.random() * 0.18)
+ end
+end
+
+mash()

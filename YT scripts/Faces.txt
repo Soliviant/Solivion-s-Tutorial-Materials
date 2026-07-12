@@ -1,0 +1,91 @@
+too lazy to watermark this. the face thingy is prreeeettyyy simple.
+It's mostly made to pair with BGR6 or Block Heads (!Blocky / !BlockH)
+
+--FACE FROM : https://create.roblox.com/store/asset...
+-- '{0 or out of range search query}' in the slot for emptying the decal,  '{numbers here}' for decals in sequence/search via texture ID, '{name/content}' to search name and TextureID 
+
+htt ps://git hub.com/Sol iviant/Soli vion-s-Assets/bl ob/main/fac e.luau
+(Add TS in Apply() if you want the default face automatically hidden: local Default = FFNAC(Part, 'face', 'Decal') -- Find First (Child Of) Name And Class
+ if Default then
+  Default.Transparency = 1
+ end
+)
+
+want the dynamic head replaced by "texture-able" blocks? (I'm sure you could figure out how to switch them to fake heads):
+function FindFirstChildOfNameAndClass(Where: Instance, Name: string, Class: string)
+ local Found: boolean = false
+ if typeof(Where) ~= 'Instance' or typeof(Name) ~= 'string' or typeof(Class) ~= 'string' then
+  return
+ end
+ if Where:FindFirstChild(Name) and Where:FindFirstChild(Name).ClassName:upper():match(Class:upper()) then
+  return Where:FindFirstChild(Name)
+ end
+ for i,v in Where:GetChildren() do
+  if not Found then
+   if Where == nil then
+    Found = true
+    return nil
+   end
+   if v.Name == Name and (v:IsA(Class) or v.ClassName:upper():match(Class:upper())) then
+    Found = true
+    return v
+   end
+  end
+ end
+end
+
+  if not plr or not Character then return end
+  local head: Part = FindFirstChildOfNameAndClass(Character, 'Head', 'BasePart')
+  if typeof(head) == 'Instance' then
+   local y, err = pcall(function()
+    task.synchronize()
+    for i,v in head:GetChildren() do
+     if v:IsA("SpecialMesh") then
+      v:Destroy()
+     end
+    end
+    head.Size = Vector3.new(1.2,1.2,1.2) * Character:GetScale() 
+    if head:IsA('MeshPart') then
+     head.MeshContent = '' -- risky since RunLevel might be issue here.
+     head.TextureContent = ''
+    end 
+   end)
+   if typeof(err) == 'string' and (err:lower():match('capability') or err:lower():match('lacking') or err:lower():match('capability') or err:lower():match('cannot write') or err:lower():match('NotAccessible')) then
+    local a,b = pcall(function()
+     task.synchronize()
+     --switch the head out
+     local BLOCKHEAD = Instance.new('Part', head) BLOCKHEAD.Name = 'BLOCKHEAD' BLOCKHEAD.Size = Vector3.new(1.2,1.2,1.2) * (Character:GetScale() or 1)
+     BLOCKHEAD.Color = head.Color
+     BLOCKHEAD.Material = head.Material
+     BLOCKHEAD.Transparency = head.Transparency
+     local JointInstances = {} -- all of them
+     for i,v in Character:GetDescendants() do
+      if v:IsA('JointInstance') then
+       table.insert(JointInstances, v)
+      end
+     end
+     for i,v in (head:GetConnectedParts(true) or {}) do
+      for _, a in JointInstances do
+       if a.Part1 == v or a.Part0 == v then
+        pcall(function() if a.Part1 == head then
+         a.Part1 = BLOCKHEAD
+        end
+        if a.Part0 == head then
+         a.Part0 = BLOCKHEAD
+        end
+        if a.Parent == head then
+         a.Parent = BLOCKHEAD
+        end end)
+       end
+      end
+     end
+     table.clear(JointInstances)
+     BLOCKHEAD.Parent = Character
+     for i,v in head:GetChildren() do
+      pcall(function()v.Parent = BLOCKHEAD end) 
+     end
+     head:Destroy()
+     BLOCKHEAD.Name = 'Head'
+    end) 
+   end
+  end

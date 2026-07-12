@@ -1,0 +1,72 @@
+No asset uploading needed. I think it's very cool and might be useful for games to just build things in studio and just have it working right away without having to export them to mesh(although that might save some performance, this type of thing will not fail to load as long as you have the serialized data and client is still connected to the server)
+It just uses data from the modulescript to generate Parts(it got Enum.PartType for many shapes) and use weld to stick it to the character. 
+
+(update: 
+grab accessory data from my github 
+https://githu b.com/Soliviant/Solivion-s-As sets/blob/main/ACCESSO RIES_DAT.rbxmx)
+
+I use module script because it kinda spreads the accessory types around, not that good type separation tho.
+
+I will use this to support accessories and customization incase the Roblox asset loader is down. I wanna make sure players kinda have that kind of freedom in my game without tying back to Roblox's Asset Loading Problem, while nobody plays it, I enjoy finding solution to such problems.
+
+The code in the command line is just:
+game:GetService('LogService'):ClearOutput() for i,v in workspace.acc_rig2.candle:GetChildren() do if not v:IsA('BasePart') then continue end print('{Transparency = '..v.Transparency, ', Size = Vector3.new('..tostring(v.Size)..')', ", WeldC0 = CFrame.new("..tostring(workspace.acc_rig2.Torso.CFrame:ToObjectSpace(v.CFrame))..')', ', Material = Enum.Material.'..v.Material.Name, '}, \n') end
+-- i think u can include Color in the serialization script above, if u know what u r doing
+
+Code in the accessory_system:
+local ReplicatedStorage = game:GetService('ReplicatedStorage')
+local ACCESSORIES = ReplicatedStorage:WaitForChild('ACCESSORIES')
+
+function ffcac(par, n, c)
+ if typeof(par) ~= 'Instance' or typeof(n) ~= 'string' or typeof(c) ~= 'string' then return end
+ for _, v in pairs(par:GetChildren()) do
+  if v.Name:match(n) and (v.ClassName == c or v:IsA(c)) then
+   return v
+  end
+ end
+ return false
+end
+
+local function createAccessory(chr, accessoryModule, attachmentPartName, namae)
+ if typeof(accessoryModule) ~= 'Instance' or accessoryModule.ClassName ~= 'ModuleScript' or typeof(attachmentPartName) ~= 'string' then return end
+ local attachmentPart = ffcac(chr, attachmentPartName, 'BasePart')
+ if not attachmentPart then return true end
+ 
+ local ran = pcall(function()
+  local accessoryData = require(accessoryModule)
+  local accessory = Instance.new("Accessory")
+  accessory.Name = namae or accessoryData.Name or accessoryModule.Name or 'NO_NAME!'
+  accessory.Parent = chr
+
+  for i, v in accessoryData do
+   local part = Instance.new('Part', accessory)
+   part.Name = v.Name or 'parte'
+   part.Color = v.Color or Color3.new(1,1,1)
+   part.Material = v.Material or Enum.Material.SmoothPlastic
+   part.Shape = v.Shape or Enum.PartType.Block 
+   part.Size = v.Size or Vector3.new(1,1,1) -- I'll add extra adjustments here to handle missing datas
+   part.Transparency = v.Transparency or 0
+   part.CanCollide = v.CanCollide or false
+   part.CFrame = attachmentPart.CFrame * (v.WeldC0 or CFrame.new())
+   part.Anchored = v.Anchored or false
+   local w = Instance.new('Weld', part)
+   w.Part0 = attachmentPart
+   w.Part1 = part
+   w.C0 = v.WeldC0 or CFrame.new()
+  end
+ end)
+ 
+ return ran or false
+end
+
+
+workspace.ChildAdded:Connect(function(chld)
+ if chld:IsA('Model') and chld:FindFirstChildOfClass('Humanoid') then
+  pcall(function() createAccessory(chld, game.ReplicatedStorage.ACCESSORIES.Head.Headphone, 'Head', 'Th') end)
+ end
+end)
+
+I FINALLY REACHED MY SUMMER BREAK!
+Gonna make random stuff soon, I'll just keep making things I want to.
+
+"a sense of freedom lies just beyond my favorite cage"

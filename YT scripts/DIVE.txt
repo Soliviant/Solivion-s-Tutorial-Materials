@@ -1,0 +1,99 @@
+Again [[More]] and [[Less]] are meant to represent angled brackets.
+Trying to align the character to the ground is an absolute pain, u gotta project the motion to the ground(Projection, Imagine Clamp but this time both up and down to snap flat(no min or max)) and turn(CFrame.LookAt) to it, also assign up vector as the ground's normal. I added -90 degree rotation on the rotation since the thing is making character stand up.
+
+something to clear my head.
+
+function r(a) return typeof(a) == 'Instance' and typeof(a.Parent) == 'Instance' end
+local char = script:FindFirstAncestorWhichIsA('Model')
+if not r(char) then return end
+local H = char:FindFirstChildOfClass('Humanoid')
+if not r(H) then return end
+function clamp(a,n,b)
+ if typeof(a) ~= 'Vector3' then return Vector3.new() end
+ if typeof(n) ~= 'Vector3' then return a end
+ local norm = a.Unit
+ return a - n*math.min(0,(norm:Dot(n)) * (typeof(b) == 'boolean' and 2 or 1))
+end
+local active = false
+local size = Vector3.new(.5,.5,.5)
+local param = RaycastParams.new()
+local ra = math.random()
+param.FilterDescendantsInstances = {char}
+param.RespectCanCollide = true
+param.FilterType = Enum.RaycastFilterType.Exclude
+
+function Dive()
+ local Force = H.MoveDirection
+ local force = H.MoveDirection * 60 + H.RootPart.AssemblyLinearVelocity
+ local last = char:GetPivot()
+ local a = -0.1
+ H.RootPart.Anchored = true
+ local groundNormal = nil
+ local startLookVector = char:GetPivot().LookVector
+ local rand =  math.random(1,2^8) 
+ if math.abs(ra-rand) [[Less]] 1 then rand +=  math.round(math.random(1,2^8)) ra =  math.round(rand) end
+ active = true
+ H.AutoRotate = false
+ ra =  math.round(rand)
+ while r(char) and math.abs(ra-rand) [[Less]] 1 and active and force.Magnitude [[More]] 1 and r(H) and r(H.RootPart) and H.RootPart.Anchored do
+  local dt = task.wait()
+  a+=dt
+  local motion = force * dt
+  force *= math.max(0, 1 - dt)
+  if force.Magnitude [[More]] 100 then
+   force = force.Unit * 100
+  end
+  local Piv = char:GetPivot()
+  Piv = Piv.Rotation + PushPositionOutWalls(Piv.Position, size, param)
+  local Ground = workspace:Blockcast(Piv, size, -Vector3.new(0,3,0), param) or workspace:Blockcast(Piv - Vector3.new(0,-3,0), size, Vector3.new(0,3,0), param)
+  force += Vector3.new(0, -workspace.Gravity, 0) * dt
+  if Ground then
+   force = clamp(force, Ground.Normal)
+   groundNormal = Ground.Normal
+  end
+  if a [[More]] 0.1 then
+   if last then
+    if (last.Position - Piv.Position).Magnitude [[Less]] .1 then
+     break
+    else last = Piv end
+   else
+    last = Piv
+   end
+   a %= 0.5
+  end
+  local normal 
+  local Hm = Vector3.new(motion.X, 0, motion.Z)
+  local Rayc = workspace:Blockcast(Piv, size, motion, param) or workspace:Blockcast(Piv, size, Hm, param) if not Rayc then Rayc = workspace:Blockcast(Piv + motion, size, -motion, param) or workspace:Blockcast(Piv + Hm, size, -Hm, param) if Rayc then normal = -Rayc.Normal end else normal = Rayc.Normal end
+  if normal then if force.Unit:Dot(Vector3.yAxis) [[Less]]= -0.95 then break end force = clamp(force, normal) motion = clamp(motion, normal) else
+   local R = workspace:Blockcast(Piv, size, motion.Unit * 1, param) or workspace:Blockcast(Piv, size, Hm.Unit * 1, param)
+   if R then
+    if force.Unit:Dot(Vector3.yAxis) [[Less]]= -0.95 then  break end
+    motion = clamp(motion, R.Normal)
+   end
+  end
+  if motion.Magnitude/dt [[Less]] 1 then
+   break
+  end
+  local goal = CFrame.new(PushPositionOutWalls(Piv.Position, size, param), Piv.Position + motion) + motion
+  goal = goal.Rotation + PushPositionOutWalls(goal.Position, size, param)
+  local goalRotation = goal.Rotation
+  if groundNormal then
+   local horizontalForward = Vector3.new(startLookVector.X, 0, startLookVector.Z)
+   if horizontalForward.Magnitude [[More]] 0.001 then horizontalForward = horizontalForward.Unit else horizontalForward = Vector3.new(0, 0, 1) end
+   local upVector = groundNormal
+   local forwardVector = (horizontalForward - horizontalForward:Dot(upVector) * upVector)
+   if forwardVector.Magnitude [[More]] 0.001 then forwardVector = forwardVector.Unit else forwardVector = (Vector3.zAxis - Vector3.zAxis:Dot(upVector) * upVector).Unit end
+   goalRotation = CFrame.lookAt(Vector3.new(), forwardVector, upVector)
+  end
+  local Fin = Piv.Rotation:Lerp(goalRotation * CFrame.Angles(-math.pi/2,0,0), 1 - (math.exp(-3 * dt))) + goal.Position
+  char:PivotTo(Fin)
+ end
+ H.RootPart.Anchored = false active = false H.AutoRotate = true
+end
+
+game:GetService('UserInputService').InputBegan:Connect(function(inp,proc)
+ if proc then return end
+ if inp.KeyCode == Enum.KeyCode.E and not active then
+  Dive()
+ end
+end)

@@ -1,0 +1,156 @@
+--for Plexus triangles and include the part that updates the part and stuff
+--outside loop functions 
+function posKey(pos)
+	return string.format('%.3f,%.3f,%.3f', pos.X, pos.Y, pos.Z)
+end
+function posMatch(p1, p2)
+	return (p1 - p2).Magnitude <  0.001
+end
+local WedgePool = {}
+
+local TriangleModule = require(script.Traingle)
+
+function VoidPart()
+	local part = Instance.new('Part', workspace)
+	part.Anchored = true
+	part.CanCollide = false
+	part.CanQuery = false
+	part.CanTouch = false
+	part.Material = Enum.Material.Neon
+	part.CastShadow = false
+	part.Transparency = 0.3 + math.random() * 0.4
+	part.Size = Vector3.new(0.1 + math.random() * 0.2, 0.1 + math.random() * 0.2, 0.1 + math.random() * 0.2)
+	part.Color = Color3.new(math.random(), math.random(), math.random())
+	part.CFrame = CFrame.new(0, 100000, 0)
+	return part
+end
+function UpdatePool(needed) if typeof(needed) ~= 'number' then return end
+	local PoolCur = #PartPool
+	local Dif = needed - PoolCur
+	if Dif == 0 then return end
+	if Dif > 0 then
+		for i = 1, Dif do
+			local part = VoidPart()
+			table.insert(PartPool, part)
+			table.insert(ParticleData, {velocity = Vector3.new((math.random() - 0.5) * 2,(math.random() - 0.5) * 2,(math.random() - 0.5) * 2),phase = math.random() * math.pi * 2,speed = 0.5 + math.random() * 1.5})
+		end
+	else
+		for i = 1, math.abs(Dif) do
+			local part = PartPool[#PartPool]
+			table.remove(PartPool, #PartPool)
+			table.remove(ParticleData, #ParticleData)
+			if typeof(part) == 'Instance' then
+				part:Destroy()
+			end
+		end
+	end
+end
+
+--wedge pool and voidwedge is the same as the Part but just Instance.new('WedgePart', workspace)
+
+--put this in the loop
+local ConnectionLookup = {}
+	for _, conn in Connection do
+		local key1 = posKey(conn.Start.Position)
+		local key2 = posKey(conn.End.Position)
+		if not ConnectionLookup[key1] then ConnectionLookup[key1] = {} end
+		if not ConnectionLookup[key2] then ConnectionLookup[key2] = {} end
+		ConnectionLookup[key1][key2] = conn
+		ConnectionLookup[key2][key1] = conn
+	end
+	
+	local TriangleCount = 0
+	local triangles = {}
+	
+	for i, conn1 in Connection do
+		local a1, b1 = conn1.Start.Position, conn1.End.Position
+		local keyA1, keyB1 = posKey(a1), posKey(b1)
+		-- Find third point connected to both a1 and b1
+		if ConnectionLookup[keyA1] and ConnectionLookup[keyB1] then
+			for keyC, conn2 in ConnectionLookup[keyA1] do
+				if keyC == keyB1 then continue end
+				if ConnectionLookup[keyB1] and ConnectionLookup[keyB1][keyC] then
+					local conn3 = ConnectionLookup[keyB1][keyC]
+					local c = conn2.Start.Position
+					if posMatch(c, conn1.Start.Position) or posMatch(c, conn1.End.Position) then
+						c = conn2.End.Position
+					end
+					local triKeys = {keyA1, keyB1, keyC}
+					table.sort(triKeys)
+					local triKey = table.concat(triKeys, '|')
+					if not triangles[triKey] then
+						triangles[triKey] = true
+						local centroid = (a1 + b1 + c) / 3
+						local adist,bdist,cdist = (a1 - centroid), (b1 - centroid), (c - centroid)
+						local distt = (adist.Magnitude + bdist.Magnitude + cdist.Magnitude) 
+						local avgdist = distt / 3
+						if avgdist < 12 then
+							TriangleCount += 1
+							local transparency = math.min(((conn1.Transparency + conn2.Transparency + conn3.Transparency)/3) + avgdist/12, 1)
+							if transparency < 1 then
+							table.insert(Triangles, {
+								a = a1,
+								b = b1,
+								c = c,
+								color = conn1.Color:Lerp(conn2.Color, 0.5):Lerp(conn3.Color, 0.33),
+								transparency = transparency
+							}) end
+						end
+					end
+				end
+			end
+		end
+	end
+	
+	task.synchronize() -- tons of table parsing operations above
+	UpdatePool(UsedCounter)
+	local using = 0
+	for i,v in PosOper do
+		using += 1 -- forced early count to dismiss the null since already updated
+		if typeof(i) ~= 'Instance' then continue end
+		if typeof(v) ~= 'table' then continue end
+		if typeof(v.pos) ~= 'CFrame' then continue end
+		i.CFrame = v.pos
+		i.Size = Vector3.new(0.1 + math.random() * 0.2, 0.1 + math.random() * 0.2, 0.1 + math.random() * 0.2)
+	end
+	for i,v in Connection do
+		using += 1
+		if typeof(v) ~= 'table' then print('con val not table') continue end
+		if typeof(v.Start) ~= 'CFrame' then print('start not cf') continue end
+		if typeof(v.End) ~= 'CFrame' then print('end not cf') continue end
+		if typeof(v.Transparency) ~= 'number' then v.Transparency = 0 end
+		if typeof(v.Color) ~= 'Color3' then v.Color = Color3.new(math.random(),math.random(),math.random()) end
+		local Part = PartPool[using]
+		if typeof(Part) ~= 'Instance' then print('con part not instance') continue end
+		Part.Size = Vector3.new(0.1, 0.1, (v.Start.Position - v.End.Position).Magnitude)
+		Part.CFrame = CFrame.lookAt((v.Start.Position + v.End.Position)/2, v.End.Position)
+		Part.Transparency = v.Transparency or 0
+		Part.Color = v.Color or Color3.new(math.random(),math.random(),math.random())
+	end
+	--for wedges Only
+	UpdateWedgePool(TriangleCount * 2)
+	local wedgeIdx = 1
+	for i, tri in Triangles do
+		if typeof(tri) ~= 'table' then continue end
+		if typeof(tri.a) ~= 'Vector3' or typeof(tri.b) ~= 'Vector3' or typeof(tri.c) ~= 'Vector3' then continue end
+		local w1 = WedgePool[wedgeIdx]
+		local w2 = WedgePool[wedgeIdx + 1]
+		if typeof(w1) ~= 'Instance' or typeof(w2) ~= 'Instance' then continue end
+		local success, w1Result, w2Result = pcall(function()	return TriangleModule.draw3dTriangle(tri.a, tri.b, tri.c, workspace, w1, w2) end)
+		if success then
+			if typeof(w1Result) == 'Instance' then
+				w1Result.Transparency = tri.transparency or 0.5
+				w1Result.Color = tri.color or Color3.new(math.random(), math.random(), math.random())
+				w1Result.Material = Enum.Material.Neon
+			end
+			if typeof(w2Result) == 'Instance' then
+				w2Result.Transparency = tri.transparency or 0.5
+				w2Result.Color = tri.color or Color3.new(math.random(), math.random(), math.random())
+				w2Result.Material = Enum.Material.Neon
+			end
+		end
+		wedgeIdx += 2
+	end
+	--clean up excess cuz somehow it fails to do for some
+	UpdateWedgePool(wedgeIdx - 1)
+end -- end of the loop here

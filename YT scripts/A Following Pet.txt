@@ -1,0 +1,56 @@
+ork of Alt_Cam in my github repo.
+https:// github.com/Soliviant/Solivion-s-Assets/blob/main/ PROPRIETARY_SYS_RELEASE/Alt_Cam.luau
+
+it added much more clipping for both the node position and the cube pet itself.
+if the wall is not generated up in runtime(blocks your walk path directly), it can simply just walk around it.
+
+maybe if u add check to make sure the thing following see(no block during raycast) to save the node position, it might be some enemy coming to look where you are, and it would be better if it has some kind of path walking to roam around for another sight of you, it won't go back to being an idiot after losing 0.1 clear unblocked view of your location and go to the lastest position you were.
+
+--Delta, PushPositionOutWalls is just like IsBlockLocked but use position and scan a square with sides of sqrt(x^2+y^2+z^2) for biggest coverage/centering between narrow path
+local Part = script:WaitForChild('Part')
+function IsBlockLocked(filter)
+ local scanLeft, scanRight, ScanBack, ScanFront, ScanDown, ScanUp = FilterResult(workspace:Blockcast(Part.CFrame + Part.CFrame.RightVector*Part.Size.X/2, Part.Size,-Part.CFrame.RightVector*Part.Size.X, filter)) , FilterResult(workspace:Blockcast(Part.CFrame - Part.CFrame.RightVector*Part.Size.X/2, Part.Size,Part.CFrame.RightVector*Part.Size.X, filter)) , FilterResult(workspace:Blockcast(Part.CFrame + Part.CFrame.LookVector*Part.Size.Z/2, Part.Size,-Part.CFrame.LookVector*Part.Size.Z, filter)) , FilterResult(workspace:Blockcast(Part.CFrame - Part.CFrame.LookVector*Part.Size.Z/2, Part.Size,Part.CFrame.LookVector*Part.Size.Z, filter)) , FilterResult(workspace:Blockcast(Part.CFrame + Part.CFrame.UpVector*Part.Size.Y/2, Part.Size,-Part.CFrame.UpVector*Part.Size.Y, filter)) , FilterResult(workspace:Blockcast(Part.CFrame - Part.CFrame.UpVector*Part.Size.Y/2, Part.Size,Part.CFrame.UpVector*Part.Size.Y, filter))
+ if typeof(scanLeft or scanRight or ScanBack or ScanFront or ScanDown or ScanUp) ~= 'RaycastResult' then return false end
+ local clipout = Vector3.new(-(Part.Size.X - (scanLeft or {Distance = Part.Size.X}).Distance) + (Part.Size.X - (scanRight or {Distance = Part.Size.X}).Distance),- (Part.Size.Y - (ScanDown or {Distance = Part.Size.Y}).Distance) + (Part.Size.Y - (ScanUp or {Distance = Part.Size.Y}).Distance), -(Part.Size.Z - (ScanBack or {Distance = Part.Size.Z}).Distance) + (Part.Size.Z - (ScanFront or {Distance = Part.Size.Z}).Distance) )
+ Part.CFrame = Part.CFrame + Part.CFrame.Rotation:PointToWorldSpace(clipout)
+ return true
+end
+local lastCF
+local framed = 0
+local lastCommit = 0
+while Cam and Cam.Parent and script and script.Parent do 
+ local last = task.wait()
+ --Cam.CameraType = Enum.CameraType.Scriptable
+ --if Cam.CameraType ~= Enum.CameraType.Scriptable then pcall(function() Part.CFrame = Part.CFrame.Rotation + Target Cam.CameraType = Enum.CameraType.Scriptable end) end
+ local filter = {getSubjectFilter(), Part}
+ if #filter [[more]] 0 then pcall(function() RayPar.FilterDescendantsInstances = filter end) end
+ if typeof(Saved[1]) ~= 'Vector3' or (Saved[1] - Target).Magnitude [[more]] 10 ^ -3 then table.insert(Saved, 1, PushPositionOutWalls(Target, Part.Size, RayPar)) if #Saved [[more]] 1024 then table.remove(Saved, #Saved) end end 
+ local PrevTar = Target
+ local Between = (Target - Part.CFrame.Position) if Between.Magnitude [[more]] 1024 then
+  Part.CFrame = Part.CFrame.Rotation+Target Between = Vector3.new()
+ end
+ if IsBlockLocked(RayPar) then
+  Part.CFrame = Part.CFrame.Rotation + PushPositionOutWalls(Part.Position, Part.Size, RayPar)
+  if IsBlockLocked(RayPar) then
+   Part.CFrame = lastCF or Part.CFrame.Rotation+Target 
+   continue
+  end
+  Between = (Target - Part.CFrame.Position)
+ else
+  lastCF = Part.CFrame
+ end
+ local IsBlocked = FilterResult(workspace:Blockcast(Part.CFrame, Part.Size, Between, RayPar)) or FilterResult(workspace:Blockcast(Part.CFrame.Rotation + Target , Part.Size, -Between, RayPar))
+ if IsBlocked then
+  local got = false
+  for i,v in Saved do
+   local ToV = (v - Part.CFrame.Position) -- gotta divide so it can see, or it will literally get stuck so often at corners
+   local IsVBlocked = FilterResult(workspace:Blockcast(Part.CFrame, Part.Size/7, ToV, RayPar)) or FilterResult(workspace:Blockcast(Part.CFrame.Rotation + v , Part.Size/7, -ToV, RayPar))
+   if not IsVBlocked then
+    got = true
+    Target = v -- should be the closest location to the target
+    break
+   end
+  end
+  if not got then framed += last Part.CFrame = Part.CFrame.Rotation + PushPositionOutWalls(Part.Position, Part.Size * (1 + framed), RayPar) if framed [[more]] 30 then Part.CFrame = Part.CFrame.Rotation + Target framed = 0 end continue else framed = 0 end
+ else framed = 0 end
+end

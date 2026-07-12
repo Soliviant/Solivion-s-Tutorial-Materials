@@ -1,0 +1,19 @@
+I used custom CFrame matrix to swap X and Y in the camera output, this creates 3 more camera and wraps the Viewport Frame hardcoded-ly cuz I can't find good solution to make the distortion continuous.
+
+how I "infinite scrolled" (tiled and wrap) it:
+once any X or Y position is more than 1(SCALAR POSITION, NOT PIXEL OFFSET), decrease both X and Y by -2 to reposition it back at the start(individually) without losing potential offset that might have exceeded 1,1 keeping the smoothness
+if you simply set the position back to "start", some might go off the track cuz you hard reset the position and dismissed the already exceeded position that would've attached the kaleidoscope together.
+Also if you used simple tiled %(mod) then I guess it might just offset the entire tile, the distortion will seem swapped when it gotta wrap (lowk that sounded good tho)  
+
+--1x1 visible using 2x2 total grid, making it 4 total cam to use, simplest way to demonstrate it.
+--always use 1x1 more than you want to be visible to the player btw
+--ONLY DO THIS CALCULATION FOR EACH CAMERA INITIALLY! OR IT MIGHT SWAP ALONG THE WAY IF YOU CHANGE COLUMN AND ROW BASED ON CURRENT POSITION 
+local scaleX = 1 - ((col % 2) * 2)
+local scaleY = 1 - ((row % 2) * 2)
+local distort = CFrame.new(0, 0, 0, scaleX, 0, 0, 0, scaleY, 0, 0, 0, 1)
+
+--I was inspired by those VS. MATT shaders that kinda allows moving left right and zoom out into seamless kaleidoscope, but I am NOT so capable of mathing allat, also I think they use tan() to move forward then land back at the normal one like that. I'm too lazy tho
+--also it sees inside out cuz I guess that's what doing this wacky stuff gets u
+
+I think I should add vignette to each of them to make it feel a bit more seamless, but nvm I guess.
+map: https://drive.google.com/file/ d/ 1RF1t9oWmozDh1985yf_hfzDirkZIpFUQ/view?usp=sharing

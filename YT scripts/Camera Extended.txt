@@ -1,0 +1,56 @@
+using the same custom Third-Person "Orbit" Camera (It's the one shown in the video that was labeled Alt)
+
+I think this might give you good ideas:
+htt ps:// www.r oblox.com/games/1347 593653/Super-C amera-Skewer-64#ropro-q uick-search
+
+-- Just Do CFrame.new(x:number, y:number, z:number, R00:number, R01:number, R02:number, R10:number, R11:number, R12:number, R20:number, R21:number, R22:number) and multiply it AFTER the Camera's Cframe. if u use default camera do it after using BindToRenderstep, if u gonna do custom camera pls HAVE a CFrame variable backup of the camera's CFrame, You can't depend on Camera.CFrame every frame anymore with this type of manipulation or it might go crazy when it stacks.
+
+-- I asked assistant for ts, because I forgot I can just CFrame.new() the stuff for a second, but this will work too, I guess.
+function applySkew(cframe, skewX, skewY, skewZ) -- SkewZ is barely visible  btw, it got cancelled out during the calculation and my brain wouldn't want to try for the love of my mental health.
+ if skewX == 0 and skewY == 0 and skewZ == 0 then
+  return cframe
+ end
+ 
+ local pos = cframe.Position
+ local look = cframe.LookVector
+ local up = cframe.UpVector
+ local right = cframe.RightVector
+ 
+ -- Apply skew only to right and up vectors relative to each other
+ -- This creates the visual distortion while preserving the look direction
+ -- skewX: skews up vector toward right (horizontal shear)
+ -- skewY: skews right vector toward up (vertical shear)
+ -- skewZ: skews both toward look direction (depth/perspective shear)
+ local skewedRight = right + (up * skewY) + (look * skewZ)
+ local skewedUp = up + (right * skewX) + (look * skewZ)
+ 
+ -- Compute the new look vector from cross product
+ -- For proper skew, we want to preserve the original look direction
+ -- So we'll use the original look vector and adjust right/up to be perpendicular to it
+ local newLook = look
+ 
+ -- Make skewedRight and skewedUp perpendicular to the original look
+ -- This preserves the camera's facing direction while still creating skew
+ skewedRight = skewedRight - (skewedRight:Dot(look)) * look
+ skewedUp = skewedUp - (skewedUp:Dot(look)) * look
+ 
+ -- Reconstruct CFrame with corrected axes
+ return CFrame.fromMatrix(pos, skewedRight, skewedUp)
+end
+
+
+!sticker's finished btw, it came instead of 2Dmakeup because I don't wanna upload new assets or approve more, the same art used in Roblox's SurfaceArt DevModule, same key.
+example: !sticker Mecha %Transparency=1 %Color3=255,200,122 %UVOffset=VC2:1,2 yadda yadda
+
+%command parser by claude because I couldn't bother making a tokenizer.
+
+ps. I was gonna allow longer stretch too, but the thing is so buggy I can't go over +0.2 squish or it'll stop updating the camera, but I can allow infinite Squash(negative value) though:
+
+local scaleX = 1 + SquishX
+local scaleY = 1 + SquishY
+-- thingy people use to modify the stuff
+local squishCFrame = CFrame.new(0, 0, 0, scaleX, 0, 0, 0, scaleY, 0, 0, 0, 1)
+Cam.CFrame = skewedCFrame * squishCFrame -- ORDER OF OPERATION IS REAL IMPORTANT, IF U GET SQUISH COORDINATE MATRIX FIRST IT WILL OFFSET THE WHOLE THING.
+
+--anyways if u use squish pls for the sake of Player's camera control, INVERT IT:
+--Ang = Ang:Lerp(CFrame.Angles(0, math.rad(X * math.sign(SquishX + 1)), 0) * CFrame.Angles(math.rad(Y * Inverted * math.sign(SquishY + 1)), 0, 0), Speed)

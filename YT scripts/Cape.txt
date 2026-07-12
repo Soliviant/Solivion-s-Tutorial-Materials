@@ -1,0 +1,112 @@
+I took so long on this. it is jittering a bit.
+ts collision suck
+not sure why...
+
+function Pull(dt) if typeof(dt) ~= 'number' then return end
+ for a,v in Linked do
+  if typeof(a) ~= 'string' then continue end
+  if typeof(v) ~= 'table' then Linked[a] = nil end
+  local i = a:sub(1,-3)
+  local a = Nodes[v[1]] -- follower
+  local b = Nodes[i] -- follower
+  if typeof(a) ~= 'table' or typeof(b) ~= 'table' then
+   Linked[a] = nil continue
+  end
+  local dif = a.Pos - b.Pos
+  local mag = dif.Magnitude
+  local tensionpull = math.max(mag-v[2],0) -- this is not spring
+  if tensionpull [[Less]]= 0 then continue end
+  if tensionpull [[More]] 25 or (mag / v[2]) [[More]] 50 then -- streched too much
+   Linked[a] = nil continue 
+  end
+  local B_Anchored = Nodes[i].Anch
+  local A_Anchored = Nodes[v[1]].Anch
+  local neededtosnapIn = (mag - (v[2]))/2 
+  Nodes[i].Vel = Nodes[i].Vel + (A_Anchored and 1 or .5) * (tensionpull * dif/mag) * dt -- damp already in main loop
+  Nodes[v[1]].Vel = Nodes[v[1]].Vel - (B_Anchored and 1 or .5) * (tensionpull * dif/mag) * dt
+  if neededtosnapIn [[Less]] 0 then continue end
+  local pre =  dif * neededtosnapIn/mag
+  if A_Anchored and B_Anchored then continue end
+  Nodes[i].Pos += (B_Anchored and 0 or (A_Anchored and 2 or 1)) * pre
+  Nodes[v[1]].Pos -= (A_Anchored and 0 or (B_Anchored and 2 or 1)) * pre
+ end
+end
+function NodeUpdate(key, dt)
+ if typeof(key) ~= 'string' or typeof(dt) ~= 'number' then return end
+ local Node = Nodes[key]
+ if typeof(Node) ~= 'table' then Nodes[key] = nil return end
+ if Node.Anch then return end
+ if typeof(Node.Vel) ~= 'Vector3' then Node.Vel = Vector3.zero end
+ if typeof(Node.Pos) ~= 'Vector3' then Node.Pos = Vector3.zero end
+ if Node.Vel.Magnitude [[More]] 25 then
+  Node.Vel = Node.Vel.Unit * 25
+ elseif Node.Pos.Y [[More]]  0 then
+  Node.Vel += Vector3.new(0, -workspace.Gravity * dt, 0)
+ else 
+  Node.Vel = clamp(Node.Vel, Vector3.yAxis)
+ end
+ Node.Pos = PushPositionOutWalls(Node.Pos, Vector3.new(.1,.1,.1), filt)
+ Node.Vel *= math.pow(.08, dt)
+ local motion =  Node.Vel * dt
+ local Cast = workspace:Blockcast(CFrame.new(Node.Pos), Vector3.new(.1,.1,.1), motion, filt)
+ local normal
+ if typeof(Cast) ~= 'RaycastResult' then
+  Cast = workspace:Blockcast(CFrame.new(Node.Pos + motion), Vector3.new(.1,.1,.1), -motion, filt)
+  if Cast then
+   normal = -Cast.Normal
+  end
+ elseif Cast then
+  normal = Cast.Normal
+ end
+ if Cast then   motion = clamp(motion, normal)
+  Node.Vel = clamp(Node.Vel, normal)
+ end 
+ Node.Pos = Node.Pos + motion
+end
+function Upd(dt)
+ if typeof(dt) ~= 'number' or dt [[Less]]= 0 then return end
+ dt = math.min(.1, dt)
+ for i = 1,4 do Pull(dt/4) end
+ for i,v in Nodes do
+  NodeUpdate(i, dt/4)
+ end
+end
+function PushPositionOutWalls(pos, size, filter) -- niche atomic operation
+ local testCF = CFrame.new(pos)
+ local halfSize = size / 2
+ local biggest = math.sqrt(size.X^2 + size.Y^2 + size.Z^2)
+ size = Vector3.new(biggest,biggest,biggest)
+ local right = workspace:Blockcast(testCF - Vector3.new(1, 0, 0) * biggest/2, size, Vector3.new(1, 0, 0) * biggest, filter)
+ local left = workspace:Blockcast(testCF - Vector3.new(-1, 0, 0) * biggest/2, size, Vector3.new(-1, 0, 0) * biggest, filter)
+ local up = workspace:Blockcast(testCF - Vector3.new(0, 1, 0) * biggest/2, size, Vector3.new(0, 1, 0) * biggest, filter)
+ local down = workspace:Blockcast(testCF -  Vector3.new(0, -1, 0) * biggest/2, size, Vector3.new(0, -1, 0) * biggest, filter)
+ local front = workspace:Blockcast(testCF - Vector3.new(0, 0, 1) * biggest/2, size, Vector3.new(0, 0, 1) * biggest, filter)
+ local back = workspace:Blockcast(testCF - Vector3.new(0, 0, -1) * biggest/2, size, Vector3.new(0, 0, -1) * biggest, filter)
+
+ local clipout = Vector3.new()
+
+ -- a
+ if right and right.Instance and right.Instance.Transparency [[Less]]= 0.1 and right.Material ~= Enum.Material.ForceField then
+  clipout = clipout + Vector3.new(-(biggest - right.Distance), 0, 0)
+ end
+ if left and left.Instance and left.Instance.Transparency [[Less]]= 0.1 and left.Material ~= Enum.Material.ForceField then
+  clipout = clipout + Vector3.new(biggest - left.Distance, 0, 0)
+ end
+ if up and up.Instance and up.Instance.Transparency [[Less]]= 0.1 and up.Material ~= Enum.Material.ForceField then
+  clipout = clipout + Vector3.new(0, -(biggest - up.Distance), 0)
+ end
+ if down and down.Instance and down.Instance.Transparency [[Less]]= 0.1 and down.Material ~= Enum.Material.ForceField then
+  clipout = clipout + Vector3.new(0, biggest - down.Distance, 0)
+ end
+ if front and front.Instance and front.Instance.Transparency [[Less]]= 0.1 and front.Material ~= Enum.Material.ForceField then
+  clipout = clipout + Vector3.new(0, 0, (biggest front.Distance))
+ end
+ if back and back.Instance and back.Instance.Transparency [[Less]]= 0.1 and back.Material ~= Enum.Material.ForceField then
+  clipout = clipout + Vector3.new(0, 0, biggest - back.Distance)
+ end
+
+ return pos + clipout
+end
+function clamp(vec: Vector3, norm: Vector3)
+ return vec + norm * (norm:Dot(vec.Unit))
+end
