@@ -2,7 +2,7 @@
 	<Meta name="ExplicitAutoJoints">true</Meta>
 	<External>null</External>
 	<External>nil</External>
-	<Item class="Tool" referent="RBX696BBC7BE2B348528E7263D486811A03">
+	<Item class="Tool" referent="RBX2B913E02461D43169B3D4E22EA701A32">
 		<Properties>
 			<bool name="CanBeDropped">true</bool>
 			<bool name="Enabled">true</bool>
@@ -58,7 +58,7 @@
 			<int64 name="SourceAssetId">-1</int64>
 			<SharedString name="Tags">yuZpQdnvvUBOTYh1jqZ2cA==</SharedString>
 		</Properties>
-		<Item class="Script" referent="RBXA0D6328CE0D34620A2B189C3821B0743">
+		<Item class="Script" referent="RBXED011FFDF3F746AB86B7955BDDE641C9">
 			<Properties>
 				<ProtectedString name="Source"><![CDATA[--Soliviant github/codeberg/youtube
 
@@ -69,10 +69,15 @@ local baseAccel = 80
 local maxSpeed = 600
 local steerRate =  1
 local DEBUG_LIFE = .1
-local PCOL = (function() return Color3.fromRGB(math.abs(math.sin(tick())) * 255, math.abs(math.cos(tick())) * 125, 0) end)() -- red: drag slam path
-local BCOL = (function() return Color3.fromRGB(math.abs(math.sin(tick())) * 125, math.abs(math.cos(tick())) * 255, 0) end)() -- red: drag slam path
-local DCOL = (function() return Color3.fromRGB(math.abs(math.sin(tick())) * 255, math.abs(math.cos(tick())) * 255, 0) end)() -- red: drag slam path
-local _DBG = Instance.new("Folder")
+local PCOL = (function() return Color3.fromRGB(math.abs(math.sin(tick())) * 255, math.abs(math.cos(tick())) * 125, 0) end)() 
+local BCOL = (function() return Color3.fromRGB(math.abs(math.sin(tick())) * 125, math.abs(math.cos(tick())) * 255, 0) end)() 
+local DCOL = (function() return Color3.fromRGB(math.abs(math.sin(tick())) * 255, math.abs(math.cos(tick())) * 255, 0) end)() 
+function FindFirstChildOfNameAndClass(Where: Instance, Name: string, Class: string)
+	local found = Where:FindFirstChild(Name)
+	if found and found:IsA(Class) then return found end
+	return nil
+end
+local _DBG = FindFirstChildOfNameAndClass(workspace, '_DBG_PATH', 'Folder') or Instance.new("Folder")
 _DBG.Name = "_DBG_PATH"
 _DBG.Parent = workspace
 local EffectInstance= {}
@@ -86,7 +91,7 @@ function FadePart(p, t)
 	end)
 end
 function ClampVector3(vector: Vector3)
-	local max_value = 600 -- max 5, due to more than that being extremely fast
+	local max_value = 600
 	local Veccal = vector
 	if vector.X ~= vector.X then Veccal = Vector3.new(Random.new():NextInteger(-max_value, max_value), vector.Y, vector.Z) end
 	if Veccal.Y ~= Veccal.Y then Veccal = Vector3.new(Veccal.X, Random.new():NextInteger(-max_value, max_value), Veccal.Z) end
@@ -99,22 +104,12 @@ function ClampVector3(vector: Vector3)
 end
 function HandleRaycastHit(velocity: Vector3, raycastResult: RaycastResult)
 	local normal = raycastResult.Normal
-	local speed = velocity.Magnitude
-	local baseThreshold = 45  -- Base angle threshold in degrees
-	local speedFactor = 0.1  -- Factor to adjust threshold based on speed
-
-	-- Calculate dynamic threshold
-	local threshold = baseThreshold / (1 + speed * speedFactor)
-
-	-- Calculate the angle between the normal and the velocity
+	local threshold = 45 / (1 + velocity.Magnitude * .1)
 	local angle = math.deg(math.acos(normal:Dot(velocity.Unit)))
-
 	if angle < threshold then
-		-- Go along the surface
 		local projectedVelocity = velocity - normal * velocity:Dot(normal)
 		return ClampVector3(projectedVelocity), false
 	else
-		-- Bounce off the surface
 		local reflectedVelocity = velocity - 2 * velocity:Dot(normal) * normal
 		return ClampVector3(reflectedVelocity), true
 	end
@@ -357,11 +352,7 @@ local SoundTabel = {
 	['Ground Slam Impact Shockwave'] = 'rbxassetid://74149238738530',
 }
 
-function FindFirstChildOfNameAndClass(Where: Instance, Name: string, Class: string)
-	local found = Where:FindFirstChild(Name)
-	if found and found:IsA(Class) then return found end
-	return nil
-end
+
 
 function PlaySound(SoundName: string, ToWhere: Instance?, Volume: number?)
 	if not Volume then Volume = VolumeMaster / 2 else Volume = math.clamp(Volume * VolumeMaster, 0, 10) end
@@ -389,6 +380,7 @@ function Clean()
 	end if typeof(TaskB) == 'thread' then
 		task.cancel(TaskB)
 	end Act = false Deb = true Eq = false TaskA = nil TaskB = nil
+	local cloned = T:FindFirstChild("Handle_C") if typeof(cloned) == 'Instance' then cloned:Destroy() end 
 	ClearDebug()
 end
 
@@ -576,6 +568,7 @@ T.Activated:Connect(function()
 				hrp.AssemblyLinearVelocity = dVel
 			end
 		end
+		local cloned = T:FindFirstChild("Handle_C") if typeof(cloned) == 'Instance' then cloned:Destroy() end 
 		Act = false
 		TaskB = nil
 	end)
@@ -584,6 +577,7 @@ T.Deactivated:Connect(function()
 	if not Act or not Eq then return end
 	Act = false
 	if TaskB then task.cancel(TaskB) end TaskB = nil
+	local cloned = T:FindFirstChild("Handle_C") if typeof(cloned) == 'Instance' then cloned:Destroy() end 
 end)
 T.Unequipped:Connect(Clean) T.Destroying:Connect(Clean)
 T.Equipped:Connect(function()
@@ -604,7 +598,7 @@ end)]]></ProtectedString>
 				<SharedString name="Tags">yuZpQdnvvUBOTYh1jqZ2cA==</SharedString>
 			</Properties>
 		</Item>
-		<Item class="UnionOperation" referent="RBX6E97144ABAF84BD5B364229B7718C141">
+		<Item class="UnionOperation" referent="RBXA123959F5A084124BEEF52CC13ADBCA8">
 			<Properties>
 				<Content name="AssetId"><null></null></Content>
 				<BinaryString name="ChildData"></BinaryString>
@@ -664,7 +658,7 @@ end)]]></ProtectedString>
 					<R02>1</R02>
 					<R10>0</R10>
 					<R11>1</R11>
-					<R12>0</R12>
+					<R12>-0</R12>
 					<R20>-1</R20>
 					<R21>0</R21>
 					<R22>0</R22>
