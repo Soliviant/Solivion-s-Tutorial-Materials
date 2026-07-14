@@ -341,11 +341,6 @@ function DrawPoint(pos, col, sz)
 	p.Parent = _DBG
 	FadePart(p, DEBUG_LIFE)
 end
-
-function ClearDebug()
-	for _, c in _DBG:GetChildren() do c:Destroy() end
-end
-
 -- Sound System
 local VolumeMaster = 1.25
 
@@ -384,7 +379,6 @@ function Clean()
 		task.cancel(TaskB)
 	end Act = false Deb = true Eq = false TaskA = nil TaskB = nil
 	local cloned = T:FindFirstChild("Handle_C") if typeof(cloned) == 'Instance' then cloned:Destroy() end 
-	ClearDebug()
 end
 
 function GetStuck(CF: CFrame): Vector3 -- heavy, just heavy
