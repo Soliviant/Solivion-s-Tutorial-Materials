@@ -88,9 +88,9 @@ local Debris = game:GetService('Debris')
 local ts = game:GetService('TweenService')
 
 function FadePart(p, t)
+	Debris:AddItem(p, t + 1)
 	task.delay(t, function()
 		ts:Create(p, TweenInfo.new(1, Enum.EasingStyle.Sine, Enum.EasingDirection.InOut), {Transparency = 1, Size = p.Size * .1} ):Play()
-		Debris:AddItem(p, 1)
 	end)
 end
 function ClampVector3(vector: Vector3)
@@ -329,8 +329,8 @@ function DrawLine(p1, p2, col, thick)
 	p.Material = Enum.Material.Neon p.Color = col
 	p.Size = Vector3.new(thick, thick, d)
 	p.CFrame = CFrame.lookAt(p1, p2) * CFrame.new(0, 0, -d / 2)
-	p.Parent = _DBG
 	FadePart(p, DEBUG_LIFE)
+	p.Parent = _DBG
 end
 
 function DrawPoint(pos, col, sz)
@@ -338,8 +338,8 @@ function DrawPoint(pos, col, sz)
 	p.Shape = Enum.PartType.Ball p.Anchored = true p.CanCollide = false
 	p.CanQuery = false p.CanTouch = false p.Material = Enum.Material.Neon
 	p.Color = col p.Size = Vector3.new(sz, sz, sz) p.Position = pos
-	p.Parent = _DBG
 	FadePart(p, DEBUG_LIFE)
+	p.Parent = _DBG
 end
 -- Sound System
 local VolumeMaster = 1.25
