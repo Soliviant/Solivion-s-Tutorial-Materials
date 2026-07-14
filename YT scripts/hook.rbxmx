@@ -61,7 +61,7 @@
 		<Item class="Script" referent="RBXED011FFDF3F746AB86B7955BDDE641C9">
 			<Properties>
 				<ProtectedString name="Source"><![CDATA[--Soliviant github/codeberg/youtube
-
+--it is meant to be "bounce-chained" to add up damages, or you can just use it as a hook, and this does not account for regen, as source inspiration does not have regen.
 local T = script:FindFirstAncestorOfClass("Tool")
 local Act, Deb, Eq, TaskA, TaskB, PARAM = false, false, false, nil, nil, RaycastParams.new()
 PARAM.IgnoreWater = true PARAM.FilterType = Enum.RaycastFilterType.Exclude
