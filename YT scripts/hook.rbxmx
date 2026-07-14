@@ -51,7 +51,7 @@
 			<float name="ScaleFactor">1</float>
 			<SharedString name="SlimHash">yuZpQdnvvUBOTYh1jqZ2cA==</SharedString>
 			<OptionalCoordinateFrame name="WorldPivotData"></OptionalCoordinateFrame>
-			<BinaryString name="AttributesSerialize"></BinaryString>
+			<BinaryString name="AttributesSerialize">AQAAAAcAAABjcmVhdG9yAhgAAABAU29saXZpb24gT04gUm9ibG94IDIwMjY=</BinaryString>
 			<SecurityCapabilities name="Capabilities">0</SecurityCapabilities>
 			<bool name="DefinesCapabilities">false</bool>
 			<string name="Name">hook</string>
@@ -475,10 +475,10 @@ T.Activated:Connect(function()
 				__VEL += Vector3.new(0, -9.8, 0) * Timer
 			end)
 		end
-		if typeof(__PLR) ~= 'nil' then
+		if typeof(__PLR) == 'Instance' then
 			local humanoid = __PLR:FindFirstChildOfClass("Humanoid")
-			local hrp = __PLR:FindFirstChild("HumanoidRootPart")
-			if humanoid and hrp and #__PATHED > 0 then
+			local hrp = FindFirstChildOfNameAndClass(__PLR, "HumanoidRootPart", "BasePart") or FindFirstChildOfNameAndClass(__PLR, "Torso", "BasePart")
+			if typeof(humanoid) == 'Instance'  and typeof(hrp) == 'Instance'  and #__PATHED > 0 then
 				local ds = hrp.Position
 				for i = #__PATHED, 1, -1 do
 					DrawLine(ds, __PATHED[i].pos, DCOL, 0.3)
@@ -486,9 +486,9 @@ T.Activated:Connect(function()
 					ds = __PATHED[i].pos
 				end
 			end
-			if humanoid and hrp and humanoid.Health > 0 then
+			if typeof(humanoid) == 'Instance'  and typeof(hrp) == 'Instance' and humanoid.Health > 0 then
 				table.insert(__PATHED,{pos = T:GetPivot().Position, vel = Vector3.zero})
-				humanoid.PlatformStand = true
+				humanoid.Sit = true
 				local oldFilter = PARAM.FilterDescendantsInstances
 				PARAM.FilterDescendantsInstances = {T, __PLR, _DBG}
 				local dVel = Vector3.zero
@@ -498,7 +498,7 @@ T.Activated:Connect(function()
 					if humanoid.Health <= 0 then break end
 					local point = __PATHED[i]
 					local target = dragIn and T:GetPivot().Position or point.pos
-					while ((target - dPos).Magnitude > (dragIn and 3 or 1.41) or dVel.Magnitude > (dragIn and 32 or 16)) and humanoid.Health > 0 do
+					while typeof(humanoid) == 'Instance' and typeof(humanoid.Parent) == 'Instance' and typeof(hrp) == 'Instance' and typeof(hrp.Parent) == 'Instance' and ((target - dPos).Magnitude > (dragIn and 3 or 1.41) or dVel.Magnitude > (dragIn and 32 or 16)) and humanoid.Health > 0 do
 						if dragIn then 	target = T:GetPivot().Position end
 						local dt = task.wait()
 						task.spawn(function()
@@ -514,6 +514,7 @@ T.Activated:Connect(function()
 						if dVel.Magnitude > maxSpeed then
 							dVel = dVel.Unit * maxSpeed
 						end
+						humanoid.Sit = true
 						_hook.Position = dPos
 						local move = dVel * dt
 						local hit = workspace:Raycast(dPos, move.Magnitude < 1 and move.Unit * 1 or move, PARAM)
@@ -550,7 +551,7 @@ T.Activated:Connect(function()
 						dVel += Vector3.new(0,-9.8 * dt,0) end)
 					end
 					dPos = target
-					hrp.CFrame = CFrame.new(dPos)
+					if typeof(hrp) == "Instance" then	hrp.CFrame = CFrame.new(dPos) end
 					DrawPoint(point.pos, DCOL, 0.8)
 					if i > 1 then
 						local nextTarget = __PATHED[i - 1].pos
@@ -561,8 +562,7 @@ T.Activated:Connect(function()
 					end
 				end
 				PARAM.FilterDescendantsInstances = oldFilter
-				humanoid.PlatformStand = false
-				hrp.AssemblyLinearVelocity = dVel
+				if typeof(hrp) == "Instance" then hrp.AssemblyLinearVelocity = dVel end
 			end
 		end
 		local cloned = T:FindFirstChild("Handle_C") if typeof(cloned) == 'Instance' then cloned:Destroy() end 
